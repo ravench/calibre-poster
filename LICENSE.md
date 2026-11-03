@@ -1,5 +1,8 @@
 # PolyForm Noncommercial License 1.0.0
 
+This licence covers the code in this repository. The poster files in `de/` and `en/`
+are licensed under CC BY-NC 4.0 instead, see [LICENSE-POSTER.md](LICENSE-POSTER.md).
+
 <https://polyformproject.org/licenses/noncommercial/1.0.0>
 
 ## Acceptance
