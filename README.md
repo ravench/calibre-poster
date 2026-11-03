@@ -30,7 +30,7 @@ date.
 
 ## Licence
 
-- The poster (`de/`, `en/`): [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/),
+- The poster (`de/`, `en/`): [CC BY-NC 4.0](LICENSE-POSTER.md),
   © 2026 Simon Giotta. Share, print and adapt it with credit, not commercially.
-- The code: [PolyForm Noncommercial 1.0.0](LICENSE.md). Contributions need the
+- The code (`poster.py`, `build.py`, `render.js`, `tests/`): [PolyForm Noncommercial 1.0.0](LICENSE.md). Contributions need the
   [Contributor License Agreement](CLA.md).
