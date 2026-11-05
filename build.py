@@ -14,6 +14,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 VERSIONS = [(lang, size, "fit", f"{stem}-{size}", suffix)
             for lang, stem, suffix in (("de", "kaliber-poster", "vorschau"), ("en", "calibre-poster", "preview"))
             for size in ("A0", "A1", "A2", "A3")] + [
+    ("en", size, "fit", f"calibre-poster-{size}", "preview") for size in ("24x36in", "18x24in", "11x17in", "Letter")] + [
     ("de", "A3-quer", "swiss", "schweizer-armee-A3", "vorschau"),
     ("en", "A3-quer", "swiss", "swiss-army-A3", "preview"),
 ]
