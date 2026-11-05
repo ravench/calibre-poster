@@ -18,6 +18,7 @@ SIZES = {"A0": (841, 1189), "A1": (594, 841), "A2": (420, 594), "A3": (297, 420)
 
 LANG = "de"
 FS = 0.58
+SUB_GAP = 12  # title baseline to subtitle baseline, in typography units (mm at A1 size)
 TEXT = {
     "de": dict(
         cats={"Luftdruck": "Luftdruck", "Randfeuer": "Randfeuer", "Kurzwaffe": "Kurzwaffen", "Langwaffe": "Langwaffen",
@@ -308,12 +309,12 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
     title_y = M + 22 * f
     T1 = title or (L["swiss_title"] if swiss else L["title"])
     out.append(f'<text x="{M}" y="{title_y:.2f}" font-size="{19 * f:.2f}" font-weight="800" letter-spacing="-0.4" fill="{INK}">{html.escape(T1)}</text>')
-    out.append(f'<text x="{M}" y="{title_y + 9 * f:.2f}" font-size="{5 * f:.2f}" fill="{MUTED}">{html.escape((L["swiss_sub"] if swiss else L["sub"]).format(n=sum(len(it["names"]) for it in items), scale=L["actual"] if abs(k - 1) < 1e-6 else L["scaled"].format(d=fmt(1 / k))))}</text>')
+    out.append(f'<text x="{M}" y="{title_y + SUB_GAP * f:.2f}" font-size="{5 * f:.2f}" fill="{MUTED}">{html.escape((L["swiss_sub"] if swiss else L["sub"]).format(n=sum(len(it["names"]) for it in items), scale=L["actual"] if abs(k - 1) < 1e-6 else L["scaled"].format(d=fmt(1 / k))))}</text>')
     # scale bar 0-100 mm (true size on print)
     bx, by = W - M - 100 * k, title_y - 3 * f
     if M + len(T1) * 19 * f * 0.56 > bx - 6 * f:  # long title: scale bar moves down beside the subtitle
         sub_w = M + 60 * 5 * f * 0.5  # subtitle is about 60 characters
-        by = title_y + (9 if sub_w < bx - 4 * f else 15) * f
+        by = title_y + (SUB_GAP if sub_w < bx - 4 * f else SUB_GAP + 6) * f
     out.append(f'<g font-size="{2.2 * f:.2f}" fill="{MUTED}" text-anchor="middle">')
     out.append(f'<line x1="{bx}" x2="{bx + 100 * k}" y1="{by}" y2="{by}" stroke="{INK}" stroke-width="0.35"/>')
     for mm in range(0, 101):
