@@ -16,7 +16,8 @@ class MergeIdenticalTests(unittest.TestCase):
         groups = [g["names"] for g in poster.merge_identical(ALL) if len(g["names"]) > 1]
         self.assertEqual(sorted(map(sorted, groups)),
                          sorted([sorted([".308 Winchester", "7.62x51 mm NATO"]),
-                                 sorted([".223 Remington", "5.56x45 mm NATO", "5.6 mm GP 90 (Swiss)"])]))
+                                 sorted([".223 Remington", "5.56x45 mm NATO", "5.6 mm GP 90"]),
+                                 sorted([".45 ACP", ".45 Super"])]))
 
     def test_no_cartridge_is_lost_or_doubled(self):
         names = [n for g in poster.merge_identical(ALL) for n in g["names"]]
@@ -36,49 +37,111 @@ class MergeIdenticalTests(unittest.TestCase):
         lines, extra = poster.label_lines(["7.62x51 mm NATO", ".308 Winchester"])
         self.assertEqual(lines, ["7.62x51 mm NATO", ".308 Winchester"])
         self.assertEqual(extra, ["gleiche Masse"])
-        lines, _ = poster.label_lines([".223 Remington", "5.6 mm GP 90 (Swiss)"])
-        self.assertEqual(lines[1], "5.6 mm GP 90", "parenthetical part is dropped in a combined label")
+        lines, _ = poster.label_lines(["7.5x55 mm Swiss (GP 11)", "9x19 mm"])
+        self.assertEqual(lines[0], "7.5x55 mm Swiss", "parenthetical part is dropped in a combined label")
 
 
 class BuildTests(unittest.TestCase):
-    VERSIONS = [("A1", 1.0, "de"), ("A1", 1.0, "en"), ("A3", 0.5, "de"), ("A3", 0.5, "en")]
+    def test_full_catalogue_builds_and_reports_overflow(self):
+        svg, (w, h), over, rows = poster.build("A1", 1.0, "de")
+        self.assertTrue(svg.startswith("<svg"))
+        self.assertIn(f'width="{w}mm" height="{h}mm"', svg)
+        self.assertGreater(over, 0, "the whole catalogue no longer fits one A1 sheet at 1:1")
 
-    def test_every_version_builds_and_fits_the_page(self):
-        for size, k, lang in self.VERSIONS:
-            with self.subTest(size=size, lang=lang):
-                svg, (w, h), over, rows = poster.build(size, k, lang)
-                self.assertTrue(svg.startswith("<svg"))
-                self.assertIn(f'width="{w}mm" height="{h}mm"', svg)
-                self.assertEqual((w, h), poster.SIZES[size])
-                self.assertLessEqual(over, 2.0, "content runs into the footer")
-                self.assertEqual(rows, 6)
-
-    def test_every_cartridge_is_named_once(self):
-        svg = poster.build("A1", 1.0, "de")[0]
+    def test_every_drawing_is_named_once(self):
+        names = set(poster.most_that_fit("A2"))
+        svg = poster.build("A2", 1.0, "de", names=names)[0]
         drawings = svg.count("<g transform=")
-        self.assertEqual(drawings, len(poster.merge_identical(ALL)))
-        self.assertEqual(svg.count("gleiche Masse"), 2)
-        n = re.search(r"(\d+) Patronen von", svg)
-        self.assertEqual(int(n.group(1)), len(ALL), "the subtitle counts every cartridge, merged or not")
+        self.assertEqual(drawings, len(poster.merge_identical([s for s in ALL if s["name"] in names])))
+        n = re.search(r"(\d+) Patronen und Geschosse", svg)
+        self.assertEqual(int(n.group(1)), len(names), "the subtitle counts every cartridge, merged or not")
 
     def test_english_labels(self):
-        svg = poster.build("A3", 0.5, "en")[0]
+        svg = poster.build("A3", 1.0, "en", names=set(poster.most_that_fit("A3", "en")))[0]
         self.assertIn("Calibre Comparison", svg)
-        self.assertIn("identical dimensions", svg)
-        self.assertIn("Scale 1:2", svg)
+        self.assertIn("Actual size (scale 1:1)", svg)
         self.assertNotIn("Kaliber im Vergleich", svg)
 
     def test_licence_credit(self):
         for lang in ("de", "en"):
-            self.assertIn("© 2026 Simon Giotta", poster.build("A1", 1.0, lang)[0])
+            self.assertIn("© 2026 Simon Giotta", poster.build("A3", 1.0, lang, names={"9x19 mm"})[0])
+
+    def test_rows_never_run_past_the_right_margin(self):
+        for size in ("A1", "A3"):
+            svg, (w, _), _, _ = poster.build(size, 1.0, "de", names=set(poster.most_that_fit(size)))
+            xs = [float(x) for x in re.findall(r'<g transform="translate\(([-\d.]+) ', svg)]
+            self.assertLess(max(xs), w - 10, size)
+
+
+class SelectionTests(unittest.TestCase):
+    def test_ranking_holds_every_calibre_once(self):
+        ranked = poster.ranked()
+        self.assertEqual(sorted(ranked), sorted(s["name"] for s in ALL))
+
+    def test_most_listed_first(self):
+        top = poster.ranked()[:5]
+        self.assertIn("9x19 mm", top)
+        self.assertIn(".22 LR", top)
+
+    def test_bigger_paper_holds_more(self):
+        counts = [len(poster.most_that_fit(size)) for size in ("A3", "A2", "A1", "A0")]
+        self.assertEqual(counts, sorted(counts))
+        self.assertLess(counts[-1], len(ALL), "not even A0 holds the whole catalogue at 1:1")
+
+    def test_selection_fits_and_one_more_does_not(self):
+        ranked = poster.ranked()
+        for size in ("A3", "A1"):
+            n = len(poster.most_that_fit(size))
+            self.assertLessEqual(poster.build(size, 1.0, "de", names=set(ranked[:n]))[2], 0)
+            self.assertGreater(poster.build(size, 1.0, "de", names=set(ranked[:n + 1]))[2], 0)
+
+    def test_every_listed_share_is_a_catalogue_calibre(self):
+        import json
+        share = json.load(open(poster.SHARE_FILE))["share"]
+        self.assertLessEqual(set(share), {s["name"] for s in ALL})
+
+
+class SwissServiceTests(unittest.TestCase):
+    def test_every_service_cartridge_is_in_the_catalogue(self):
+        names = {s["name"] for s in ALL}
+        for row in poster.SWISS_SERVICE:
+            self.assertIn(row[0], names)
+
+    def test_oldest_first_and_fits_a3_landscape(self):
+        svg, _, over, rows = poster.build("A3-quer", 1.0, "de", swiss=True)
+        self.assertLessEqual(over, 0)
+        self.assertEqual(rows, 1)
+        self.assertLess(svg.index("Milbank-Amsler"), svg.index("Pist Pat 41"))
+        self.assertLess(svg.index("Pist Pat 41"), svg.index("Zf Stgw 20"))
+
+    def test_swiss_names_lead_and_english_uses_points(self):
+        de = poster.build("A3-quer", 1.0, "de", swiss=True)[0]
+        en = poster.build("A3-quer", 1.0, "en", swiss=True)[0]
+        for name in ("Pist Pat 03", "Pist Pat 41", "GP 11", "GP 90", "GP 1890"):
+            self.assertIn(f">{name}<", de)
+        self.assertIn("Ordonnanzpatronen der Schweizer Armee", de)
+        self.assertIn("Swiss Army Service Cartridges", en)
+        self.assertIn("10.4 mm", en)
+        self.assertNotIn("10,4 mm", en)
+
+
+class MaterialTests(unittest.TestCase):
+    def test_materials_get_their_own_fill(self):
+        spec = {s["name"]: s for s in ALL}
+        def svg(name):
+            s = spec[name]
+            return poster.cartridge_svg(s, outline.outline(s), 0, 0, 1.0)
+        self.assertIn("url(#steel)", svg("7.62x39 mm"))      # steel case
+        self.assertIn("url(#lead)", svg(".22 LR"))           # lead bullet
+        self.assertIn("url(#paper)", svg("7.5x53.5 mm Swiss (GP 1890)"))
 
 
 class PublishedFilesTests(unittest.TestCase):
     def test_published_svgs_are_up_to_date(self):
-        for lang, size, k, stem, _ in build.VERSIONS:
+        for lang, size, edition, stem, _ in build.VERSIONS:
             with self.subTest(stem):
                 with open(os.path.join(ROOT, lang, stem + ".svg")) as f:
-                    self.assertEqual(f.read(), poster.build(size, k, lang)[0], "run python3 build.py --render")
+                    self.assertEqual(f.read(), build.version(lang, size, edition)[0], "run python3 build.py --render")
 
     def test_every_version_has_pdf_and_preview(self):
         for lang, _, _, stem, suffix in build.VERSIONS:
