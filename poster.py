@@ -272,7 +272,7 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
         return w
 
     # Rows: flow the categories in order and break when a row is full.
-    FLOW = ["Luftdruck", "Randfeuer", "Flinte", "Kurzwaffe", "Langwaffe", "SP_Geschoss", "SP_Patrone", "CH"]
+    FLOW = ["Luftdruck", "Randfeuer", "Kurzwaffe", "Langwaffe", "SP_Geschoss", "SP_Patrone", "Flinte", "CH"]
     items.sort(key=lambda it: FLOW.index(it["cat"]))  # stable: keeps the order inside each category
     rows, cur, used = [], [], 0
     for it in items:
