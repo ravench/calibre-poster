@@ -76,9 +76,10 @@ class BuildTests(unittest.TestCase):
 class OrderTests(unittest.TestCase):
     @staticmethod
     def printed(svg):
-        """(length, diameter) of every drawing, as printed under it, in poster order."""
+        """(length, diameter) of every drawing, as printed under it, in poster order. A round ball
+        shows only its diameter, which is also its length."""
         num = lambda t: float(t.replace(",", "."))
-        return [(num(l), num(d)) for d, l in re.findall(r">Ø ([\d,.]+) · ([\d,.]+) mm<", svg)]
+        return [(num(l or d), num(d)) for d, l in re.findall(r">Ø ([\d,.]+)(?: · ([\d,.]+))? mm<", svg)]
 
     def test_each_section_goes_by_length_then_diameter(self):
         sections = [specs for cat, specs in CATALOGUE if cat != "Schwarzpulver"]
