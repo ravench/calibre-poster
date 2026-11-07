@@ -214,6 +214,11 @@ def cartridge_svg(c, o, x, base_y, k):
     return f'<g transform="translate({tx:.3f} {ty:.3f}) scale({k})">{"".join(parts)}</g>'
 
 
+def section_order(spec):
+    """Order inside a section: shortest first, the thinner bullet first where the printed lengths match."""
+    return (round(spec["oal"], 1), spec["bullet"])  # length as printed (0.1 mm)
+
+
 def dims(c):
     o = c["outline"]
     if c["kind"] in (BALL,):
@@ -244,7 +249,7 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
             by_cat[cat].append(spec)
     for cat in ORDER:
         specs = sorted([s for s in by_cat[cat] if s["name"] not in MERGED and (names is None or s["name"] in names)],
-                       key=lambda s: (round(s["bullet"], 2), s["oal"]))
+                       key=section_order)
         # Cartridges with identical measurements are drawn once, with all their names.
         for g in merge_identical(specs):
             s = g["spec"]

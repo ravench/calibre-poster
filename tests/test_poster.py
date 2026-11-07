@@ -1,5 +1,5 @@
 """Tests for the calibre wall poster: python3 -m unittest discover -s tests"""
-import os, re, sys, unittest
+import os, re, subprocess, sys, unittest
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 sys.path.insert(0, ROOT)
@@ -71,6 +71,34 @@ class BuildTests(unittest.TestCase):
             svg, (w, _), _, _ = poster.build(size, 1.0, "de", names=set(poster.most_that_fit(size)))
             xs = [float(x) for x in re.findall(r'<g transform="translate\(([-\d.]+) ', svg)]
             self.assertLess(max(xs), w - 10, size)
+
+
+class OrderTests(unittest.TestCase):
+    @staticmethod
+    def printed(svg):
+        """(length, diameter) of every drawing, as printed under it, in poster order."""
+        num = lambda t: float(t.replace(",", "."))
+        return [(num(l), num(d)) for d, l in re.findall(r">Ø ([\d,.]+) · ([\d,.]+) mm<", svg)]
+
+    def test_each_section_goes_by_length_then_diameter(self):
+        sections = [specs for cat, specs in CATALOGUE if cat != "Schwarzpulver"]
+        black = dict(CATALOGUE)["Schwarzpulver"]
+        sections += [[s for s in black if s["kind"] in (poster.BALL, poster.MINIE)],
+                     [s for s in black if s["kind"] not in (poster.BALL, poster.MINIE)]]
+        for specs in sections:
+            names = {s["name"] for s in specs}
+            with self.subTest(first=specs[0]["name"]):
+                got = self.printed(poster.build("A0", 1.0, "de", names=names)[0])
+                self.assertGreater(len(got), 1)
+                self.assertEqual(got, sorted(got))
+
+    def test_equal_length_puts_the_thinner_bullet_first(self):
+        svg = poster.build("A3", 1.0, "de", names={"12/70", "16/70", "20/70", "28/70"})[0]
+        self.assertEqual(self.printed(svg), [(64.0, 16.0), (64.0, 17.6), (64.0, 18.9), (64.0, 20.6)])
+
+    def test_length_as_printed_decides_before_the_diameter(self):
+        # 84.84 mm is printed as 84.8 mm, so the thinner bullet comes first.
+        self.assertLess(poster.section_order({"oal": 84.84, "bullet": 6.7}), poster.section_order({"oal": 84.8, "bullet": 7.8}))
 
 
 class SelectionTests(unittest.TestCase):
@@ -147,6 +175,14 @@ class PublishedFilesTests(unittest.TestCase):
         for lang, _, _, stem, suffix in build.VERSIONS:
             for name in (stem + ".pdf", f"{stem}-{suffix}.png"):
                 self.assertTrue(os.path.isfile(os.path.join(ROOT, lang, name)), f"{lang}/{name}")
+
+    def test_every_binary_goes_through_git_lfs(self):
+        git = lambda *args: subprocess.run(["git", *args], cwd=ROOT, capture_output=True, check=True).stdout
+        files = git("ls-files", "*.png", "*.pdf").decode().split()
+        self.assertTrue(files)
+        for name in files:
+            with self.subTest(name):
+                self.assertTrue(git("show", ":" + name).startswith(b"version https://git-lfs.github.com/spec/v1"))
 
 
 if __name__ == "__main__":
