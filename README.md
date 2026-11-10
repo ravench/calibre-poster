@@ -4,7 +4,7 @@
 [shared calibre data](https://github.com/ravench/calibre-data), every one at actual size (1:1),
 sorted by group, then by length and, at equal length, by bullet diameter.
 
-The catalogue (389 calibres) no longer fits on one sheet at 1:1, so each size shows the calibres
+The catalogue (411 calibres) no longer fits on one sheet at 1:1, so each size shows the calibres
 listed for sale most often that fit on it ([listing-share.json](listing-share.json): share of listings on the big gun
 marketplaces, counted 2026-11-04).
 
@@ -18,7 +18,7 @@ marketplaces, counted 2026-11-04).
 | Swiss service cartridges since 1867, A3 landscape | [PDF](de/schweizer-armee-A3.pdf) · [SVG](de/schweizer-armee-A3.svg) · [preview](de/schweizer-armee-A3-vorschau.png) | [PDF](en/swiss-army-A3.pdf) · [SVG](en/swiss-army-A3.svg) · [preview](en/swiss-army-A3-preview.png) |
 
 Print without scaling (100 %); the scale bar at the top lets you check. Cartridges with identical
-measurements (.308 Win / 7.62 NATO, .223 Rem / 5.56 NATO / GP 90, .45 ACP / .45 Super) are drawn once
+measurements (.308 Win / 7.62 NATO, .223 Rem / 5.56 NATO / GP 90) are drawn once
 with all their names. Bullet and case materials (lead, soft point, polymer tip, steel, nickel and copper
 cases) come from the calibre data. Dimensions are rounded per CIP/SAAMI and bullet shapes are schematic;
 this is not load data. The Swiss poster uses a Swiss designation (Pist Pat 03, Pist Pat 41, GP 1890,
@@ -34,6 +34,7 @@ python3 build.py --render            # also PDF and PNG previews (Node + Playwri
 python3 -m unittest discover -s tests
 ```
 
+Python 3.11 or newer reads the calibre data (one TOML file per calibre).
 `poster.py` draws one version (`python3 poster.py OUT_DIR --size A1 --lang de --fit`, or `--swiss`); `build.py` lists the published ones.
 To use newer calibre data, update the submodule (`git -C calibre-data pull origin main`),
 run `python3 build.py --render` and commit both. CI fails when the committed SVGs are out of
