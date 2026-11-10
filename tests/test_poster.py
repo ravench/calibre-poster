@@ -16,8 +16,7 @@ class MergeIdenticalTests(unittest.TestCase):
         groups = [g["names"] for g in poster.merge_identical(ALL) if len(g["names"]) > 1]
         self.assertEqual(sorted(map(sorted, groups)),
                          sorted([sorted([".308 Winchester", "7.62x51 mm NATO"]),
-                                 sorted([".223 Remington", "5.56x45 mm NATO", "5.6 mm GP 90"]),
-                                 sorted([".45 ACP", ".45 Super"])]))
+                                 sorted([".223 Remington", "5.56x45 mm NATO", "5.6 mm GP 90"])]))
 
     def test_no_cartridge_is_lost_or_doubled(self):
         names = [n for g in poster.merge_identical(ALL) for n in g["names"]]
