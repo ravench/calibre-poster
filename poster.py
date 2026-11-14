@@ -9,8 +9,13 @@ service edition. Cartridges with identical measurements are drawn once with all 
 """
 import os, re, sys, html
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "calibre-data"))
-from cartridges import CATALOGUE, SHOT, BALL, MINIE, PELLET  # noqa: E402
-from outline import outline  # noqa: E402
+from cartridges import SHOT, BALL, MINIE, PELLET  # noqa: E402
+import cartridges  # noqa: E402
+from outline import outline, well_sourced  # noqa: E402
+
+# The posters show only the calibres that are well sourced and likely draw correctly (calibre-data's
+# outline.well_sourced: every measurement, the shoulder angle and the extractor groove from a source).
+CATALOGUE = [(cat, [s for s in items if well_sourced(s)]) for cat, items in cartridges.CATALOGUE]
 
 SIZES = {"A0": (841, 1189), "A1": (594, 841), "A2": (420, 594), "A3": (297, 420), "A4": (210, 297),
          "B1": (700, 1000), "24x36in": (610, 914), "18x24in": (457, 610), "11x17in": (279, 432), "Letter": (216, 279),
@@ -205,7 +210,8 @@ def cartridge_svg(c, o, x, base_y, k):
         parts.append(f'<path d="{o["head"]}" fill="url(#{"steel" if o.get("headMaterial") == "steel" else "brass"})" {stroke}/>')
     if "bullet" in o:
         bm = o.get("bulletMaterial")
-        metal = "steel" if bm == "steel" else ("lead" if lead or bm == "lead" else "copper")
+        # a silver (cupronickel) jacket, a white plastic BB
+        metal = {"steel": "steel", "cupronickel": "nickel", "plastic": "paper"}.get(bm) or ("lead" if lead or bm == "lead" else "copper")
         parts.append(f'<path d="{o["bullet"]}" fill="url(#{metal})" {stroke}/>')
     if "tip" in o:  # soft point (lead) or polymer tip
         parts.append(f'<path d="{o["tip"]}" fill="url(#{"polymer" if o.get("tipMaterial") == "polymer" else "lead"})" {stroke}/>')
