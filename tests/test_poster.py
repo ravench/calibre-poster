@@ -4,18 +4,20 @@ import os, re, subprocess, sys, unittest
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 sys.path.insert(0, ROOT)
 import poster  # noqa: E402
-from cartridges import CATALOGUE  # noqa: E402
+import cartridges  # noqa: E402
+from poster import CATALOGUE  # noqa: E402  (the well-sourced calibres)
 import build  # noqa: E402
 import outline  # noqa: E402
 
 ALL = [s for _, items in CATALOGUE for s in items]
+EVERY = {s["name"]: s for _, items in cartridges.CATALOGUE for s in items}  # the whole catalogue, by name
 
 
 class MergeIdenticalTests(unittest.TestCase):
     def test_identical_measurements_share_one_drawing(self):
         groups = [g["names"] for g in poster.merge_identical(ALL) if len(g["names"]) > 1]
         self.assertEqual(sorted(map(sorted, groups)),
-                         sorted([sorted([".308 Winchester", "7.62x51 mm NATO"]),
+                         sorted([sorted([".308 Winchester", "7.62x51 mm NATO"]), sorted([".38 ACP", ".38 Super"]),
                                  sorted([".223 Remington", "5.56x45 mm NATO", "5.6 mm GP 90"])]))
 
     def test_no_cartridge_is_lost_or_doubled(self):
@@ -24,11 +26,13 @@ class MergeIdenticalTests(unittest.TestCase):
 
     def test_same_groups_as_the_calibre_data(self):
         merged = [g["names"] for g in poster.merge_identical(ALL) if len(g["names"]) > 1]
-        self.assertEqual(sorted(map(sorted, merged)), sorted(map(sorted, outline.identical_groups())))
+        shown = {s["name"] for s in ALL}  # a group of the calibre data may be left out as not well sourced
+        groups = [[n for n in g if n in shown] for g in outline.identical_groups()]
+        self.assertEqual(sorted(map(sorted, merged)), sorted(sorted(g) for g in groups if len(g) > 1))
 
     def test_similar_but_different_cartridges_stay_apart(self):
         groups = {n: i for i, g in enumerate(poster.merge_identical(ALL)) for n in g["names"]}
-        self.assertNotEqual(groups["7.5x55 mm Swiss (GP 11)"], groups["7.5x53.5 mm Swiss (GP 1890)"])
+        self.assertNotEqual(groups["7.5x55 mm Swiss (GP 11)"], groups["7.62x51 mm NATO"])
         self.assertNotEqual(groups["9x19 mm"], groups["9x21 mm IMI"])
 
     def test_combined_label_lists_every_name(self):
@@ -94,7 +98,9 @@ class OrderTests(unittest.TestCase):
 
     def test_equal_length_puts_the_thinner_bullet_first(self):
         svg = poster.build("A3", 1.0, "de", names={"12/70", "16/70", "20/70", "28/70"})[0]
-        self.assertEqual(self.printed(svg), [(64.0, 16.0), (64.0, 17.6), (64.0, 18.9), (64.0, 20.6)])
+        self.assertEqual(self.printed(svg), [(61.1, 20.6), (62.0, 18.9), (62.1, 17.7), (63.5, 15.8)])
+        svg = poster.build("A3", 1.0, "de", names={".308 Winchester", ".30-06 Springfield", "7.5x55 mm Swiss (GP 11)"})[0]
+        self.assertEqual(self.printed(svg), sorted(self.printed(svg)))
 
     def test_length_as_printed_decides_before_the_diameter(self):
         # 84.84 mm is printed as 84.8 mm, so the thinner bullet comes first.
@@ -102,6 +108,21 @@ class OrderTests(unittest.TestCase):
 
 
 class SelectionTests(unittest.TestCase):
+    def test_only_well_sourced_calibres_are_drawn(self):
+        shown = {s["name"] for s in ALL}
+        self.assertEqual(shown, {n for n, s in EVERY.items() if outline.well_sourced(s)})
+        self.assertGreater(len(shown), 500)
+        self.assertLess(len(shown), len(EVERY))
+        for name in ("9x19 mm", "12/70", "10.4 mm Swiss Ordnance 1878"):  # the last one: a default rim is allowed
+            self.assertIn(name, shown)
+        left_out = ".56-52 Spencer Necked"  # an estimated shoulder at the default angle
+        self.assertNotIn(left_out, shown)
+        self.assertNotIn(left_out, poster.ranked())
+        svg = poster.build("A3", 1.0, "en", names={"9x19 mm", left_out})[0]  # also when asked for by name
+        self.assertIn("1 cartridges and projectiles", svg)
+        for size in ("A3", "A0"):
+            self.assertLessEqual(set(poster.most_that_fit(size)), shown)
+
     def test_ranking_holds_every_calibre_once(self):
         ranked = poster.ranked()
         self.assertEqual(sorted(ranked), sorted(s["name"] for s in ALL))
@@ -126,14 +147,21 @@ class SelectionTests(unittest.TestCase):
     def test_every_listed_share_is_a_catalogue_calibre(self):
         import json
         share = json.load(open(poster.SHARE_FILE))["share"]
-        self.assertLessEqual(set(share), {s["name"] for s in ALL})
+        self.assertLessEqual(set(share), set(EVERY))
 
 
 class SwissServiceTests(unittest.TestCase):
     def test_every_service_cartridge_is_in_the_catalogue(self):
-        names = {s["name"] for s in ALL}
         for row in poster.SWISS_SERVICE:
-            self.assertIn(row[0], names)
+            self.assertIn(row[0], EVERY)
+
+    def test_the_swiss_poster_shows_the_well_sourced_ones(self):
+        shown = {s["name"] for s in ALL}
+        rows = [row for row in poster.SWISS_SERVICE if row[0] in shown]
+        self.assertGreaterEqual(len(rows), 14)
+        svg = poster.build("A3-quer", 1.0, "de", swiss=True)[0]
+        self.assertIn(f"{len(rows)} Patronen von 1867 bis heute", svg)
+        self.assertEqual(svg.count("<g transform="), len(rows))
 
     def test_oldest_first_and_fits_a3_landscape(self):
         svg, _, over, rows = poster.build("A3-quer", 1.0, "de", swiss=True)
@@ -155,13 +183,17 @@ class SwissServiceTests(unittest.TestCase):
 
 class MaterialTests(unittest.TestCase):
     def test_materials_get_their_own_fill(self):
-        spec = {s["name"]: s for s in ALL}
+        spec = EVERY
         def svg(name):
             s = spec[name]
             return poster.cartridge_svg(s, outline.outline(s), 0, 0, 1.0)
         self.assertIn("url(#steel)", svg("7.62x39 mm"))      # steel case
         self.assertIn("url(#lead)", svg(".22 LR"))           # lead bullet
         self.assertIn("url(#paper)", svg("7.5x53.5 mm Swiss (GP 1890)"))
+        self.assertIn("url(#nickel)", svg("7.5x55 mm Swiss (GP 11)"))  # a silver jacket
+        self.assertNotIn("url(#copper)", svg("7.5x55 mm Swiss (GP 11)"))
+        self.assertIn("url(#paper)", svg("6 mm Airsoft-BB"))          # white plastic
+        self.assertIn("url(#lead)", svg("4.5 mm Diabolo (.177)"))
 
 
 class PublishedFilesTests(unittest.TestCase):
