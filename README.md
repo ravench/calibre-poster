@@ -6,7 +6,7 @@ sorted by group, then by length and, at equal length, by bullet diameter.
 
 The posters show only the calibres that are well sourced and likely draw correctly: every
 measurement, the shoulder angle and the extractor groove come from a source (`outline.well_sourced`
-in the calibre data; 589 of its 759 calibres today). A calibre left out comes back when its missing
+in the calibre data; 593 of its 759 calibres today). A calibre left out comes back when its missing
 values are sourced there. They do not fit on one sheet at 1:1, so each size shows the calibres
 listed for sale most often that fit on it ([listing-share.json](listing-share.json): share of listings on the big gun
 marketplaces, counted 2026-11-04).
@@ -18,7 +18,7 @@ marketplaces, counted 2026-11-04).
 | A2, about 75 | [PDF](de/kaliber-poster-A2.pdf) · [SVG](de/kaliber-poster-A2.svg) · [preview](de/kaliber-poster-A2-vorschau.png) | [PDF](en/calibre-poster-A2.pdf) · [SVG](en/calibre-poster-A2.svg) · [preview](en/calibre-poster-A2-preview.png) |
 | A3, about 50 | [PDF](de/kaliber-poster-A3.pdf) · [SVG](de/kaliber-poster-A3.svg) · [preview](de/kaliber-poster-A3-vorschau.png) | [PDF](en/calibre-poster-A3.pdf) · [SVG](en/calibre-poster-A3.svg) · [preview](en/calibre-poster-A3-preview.png) |
 | US sizes: 24 × 36 in, 18 × 24 in, 11 × 17 in, Letter (about 155, 95, 45, 22) | | [24x36in](en/calibre-poster-24x36in.pdf) · [18x24in](en/calibre-poster-18x24in.pdf) · [11x17in](en/calibre-poster-11x17in.pdf) · [Letter](en/calibre-poster-Letter.pdf) |
-| Swiss service cartridges since 1867 (without the GP 1890 until its case head is sourced), A3 landscape | [PDF](de/schweizer-armee-A3.pdf) · [SVG](de/schweizer-armee-A3.svg) · [preview](de/schweizer-armee-A3-vorschau.png) | [PDF](en/swiss-army-A3.pdf) · [SVG](en/swiss-army-A3.svg) · [preview](en/swiss-army-A3-preview.png) |
+| Swiss service cartridges since 1867, A3 landscape | [PDF](de/schweizer-armee-A3.pdf) · [SVG](de/schweizer-armee-A3.svg) · [preview](de/schweizer-armee-A3-vorschau.png) | [PDF](en/swiss-army-A3.pdf) · [SVG](en/swiss-army-A3.svg) · [preview](en/swiss-army-A3-preview.png) |
 
 Print without scaling (100 %); the scale bar at the top lets you check. Cartridges with identical
 measurements (.308 Win / 7.62 NATO, .223 Rem / 5.56 NATO / GP 90) are drawn once

@@ -173,7 +173,7 @@ class SwissServiceTests(unittest.TestCase):
     def test_swiss_names_lead_and_english_uses_points(self):
         de = poster.build("A3-quer", 1.0, "de", swiss=True)[0]
         en = poster.build("A3-quer", 1.0, "en", swiss=True)[0]
-        for name in ("Pist Pat 03", "Pist Pat 41", "GP 11", "GP 90"):
+        for name in ("Pist Pat 03", "Pist Pat 41", "GP 11", "GP 90", "GP 1890"):
             self.assertIn(f">{name}<", de)
         self.assertIn("Ordonnanzpatronen der Schweizer Armee", de)
         self.assertIn("Swiss Army Service Cartridges", en)
