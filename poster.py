@@ -89,7 +89,7 @@ SWISS_SERVICE = [  # (catalogue name, Swiss name, international name, year adopt
     ("10.4 mm Swiss Ordnance 1872 Rimfire", "10,4 mm Randfeuer", "", 1872, "Revolver 1872"),
     ("10.4 mm Swiss Ordnance 1878", "10,4 mm Zentralfeuer", "", 1878, "Revolver 1872/78"),
     ("7.5 mm Swiss Ordnance 1882", "7,5x23 R", "", 1882, "Revolver 1882"),
-    ("7.5x53.5 mm Swiss (GP 1890)", "GP 1890", "7,5x53,5", 1889, "Gewehr 1889"),
+    ("7.5x53.5 mm Swiss (Patrone Modell 1890)", "GP 1890", "7,5x53,5", 1889, "Gewehr 1889"),
     ("7.65 mm Parabellum", "Pist Pat 03", "7,65 mm Parabellum", 1900, "Pistole 1900, 1906, 06/29"),
     ("7.5x55 mm Swiss (GP 11)", "GP 11", "7,5x55", 1911, "K11, K31, Lmg 25, Mg 51, Stgw 57"),
     ("9x19 mm", "Pist Pat 41", "9 mm Parabellum", 1941, "Pistole 49, Pistole 75, Mp 14"),
