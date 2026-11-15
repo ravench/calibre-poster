@@ -18,7 +18,8 @@ class MergeIdenticalTests(unittest.TestCase):
         groups = [g["names"] for g in poster.merge_identical(ALL) if len(g["names"]) > 1]
         self.assertEqual(sorted(map(sorted, groups)),
                          sorted([sorted([".308 Winchester", "7.62x51 mm NATO"]), sorted([".38 ACP", ".38 Super"]),
-                                 sorted([".223 Remington", "5.56x45 mm NATO", "5.6 mm GP 90"])]))
+                                 sorted([".223 Remington", "5.56 Commercial", "5.56x45 mm NATO", "5.6 mm GP 90"]),
+                                 sorted([".500/450 Magnum Express", ".500/450 Nitro Express"])]))
 
     def test_no_cartridge_is_lost_or_doubled(self):
         names = [n for g in poster.merge_identical(ALL) for n in g["names"]]
@@ -123,6 +124,11 @@ class SelectionTests(unittest.TestCase):
         for size in ("A3", "A0"):
             self.assertLessEqual(set(poster.most_that_fit(size)), shown)
 
+    def test_cannon_rounds_stay_off(self):  # a cannon poster may come later; the calibre posters leave them out
+        cannon = {s["name"] for cat, items in cartridges.ALL_CATALOGUE if cat == "Kanone" for s in items}
+        self.assertGreater(len(cannon), 20)
+        self.assertFalse(cannon & {s["name"] for s in ALL})
+
     def test_ranking_holds_every_calibre_once(self):
         ranked = poster.ranked()
         self.assertEqual(sorted(ranked), sorted(s["name"] for s in ALL))
@@ -189,7 +195,7 @@ class MaterialTests(unittest.TestCase):
             return poster.cartridge_svg(s, outline.outline(s), 0, 0, 1.0)
         self.assertIn("url(#steel)", svg("7.62x39 mm"))      # steel case
         self.assertIn("url(#lead)", svg(".22 LR"))           # lead bullet
-        self.assertIn("url(#paper)", svg("7.5x53.5 mm Swiss (GP 1890)"))
+        self.assertIn("url(#paper)", svg("7.5x53.5 mm Swiss (Patrone Modell 1890)"))
         self.assertIn("url(#nickel)", svg("7.5x55 mm Swiss (GP 11)"))  # a silver jacket
         self.assertNotIn("url(#copper)", svg("7.5x55 mm Swiss (GP 11)"))
         self.assertIn("url(#paper)", svg("6 mm Airsoft-BB"))          # white plastic
