@@ -124,6 +124,11 @@ class SelectionTests(unittest.TestCase):
         for size in ("A3", "A0"):
             self.assertLessEqual(set(poster.most_that_fit(size)), shown)
 
+    def test_cannon_rounds_stay_off(self):  # a cannon poster may come later; the calibre posters leave them out
+        cannon = {s["name"] for cat, items in cartridges.ALL_CATALOGUE if cat == "Kanone" for s in items}
+        self.assertGreater(len(cannon), 20)
+        self.assertFalse(cannon & {s["name"] for s in ALL})
+
     def test_ranking_holds_every_calibre_once(self):
         ranked = poster.ranked()
         self.assertEqual(sorted(ranked), sorted(s["name"] for s in ALL))

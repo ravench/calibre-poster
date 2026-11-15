@@ -6,7 +6,7 @@ sorted by group, then by length and, at equal length, by bullet diameter.
 
 The posters show only the calibres that are well sourced and likely draw correctly: every
 measurement, the shoulder angle and the extractor groove come from a source (`outline.well_sourced`
-in the calibre data; 735 of its 760 calibres today). A calibre left out comes back when its missing
+in the calibre data; 735 of its 760 small-arms calibres today; cannon rounds are left out). A calibre left out comes back when its missing
 values are sourced there. They do not fit on one sheet at 1:1, so each size shows the calibres
 listed for sale most often that fit on it ([listing-share.json](listing-share.json): share of listings on the big gun
 marketplaces, counted 2026-11-04).
