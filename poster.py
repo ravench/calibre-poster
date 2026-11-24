@@ -9,7 +9,7 @@ service edition. Cartridges with identical measurements are drawn once with all 
 """
 import os, re, sys, html
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "calibre-data"))
-from cartridges import SHOT, BALL, MINIE, PELLET, LOOSE, is_blank  # noqa: E402
+from cartridges import SHOT, BALL, MINIE, PELLET, is_blank  # noqa: E402
 import cartridges  # noqa: E402
 from outline import outline, well_sourced  # noqa: E402
 
@@ -40,7 +40,7 @@ TEXT = {
         note1="Druck ohne Skalierung (100 %) auf {size}: Patronen in Originalgrösse. ",
         noteK="Druck ohne Skalierung (100 %) auf {size}: Massstab 1:{d}. ",
         note2="Ø: Geschossdurchmesser ({case}), dann Gesamtlänge. Abmessungen gerundet nach CIP/SAAMI, Geschossform schematisch. Keine Ladedaten.",
-        case="Flinten: Hülse", case_blanks="Flinten und Knallpatronen: Hülse",  # what «Ø» is where there is no bullet
+        case="Schrotpatronen: Hülse", case_blanks="Schrot- und Knallpatronen: Hülse",  # what «Ø» is where there is no bullet
         lic="© 2026 Simon Giotta · Lizenz CC BY-NC 4.0 · creativecommons.org/licenses/by-nc/4.0",
         same="gleiche Abmessungen",  # not «Masse»: with the Swiss ss that also reads as «mass»
         swiss_title="Ordonnanzpatronen der Schweizer Armee", swiss_sub="{n} Patronen von 1867 bis heute · {scale}",
@@ -354,7 +354,7 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
             sub = cat if cat != "Schwarzpulver" else ("SP_Geschoss" if s["kind"] in (BALL, MINIE) else "SP_Patrone")
             if swiss:
                 sub = "CH"
-            blank = s["kind"] not in LOOSE and is_blank(s["profile"], s["rim"], s["base"], s["neck"], s["bullet"], s["case"], s["oal"])
+            blank = is_blank(s["profile"], s["rim"], s["base"], s["neck"], s["bullet"], s["case"], s["oal"])
             items.append({"cat": sub, "name": s["name"], "names": g["names"], "kind": s["kind"], "bullet": s["bullet"],
                           "oal": s["oal"], "outline": g["outline"], "blank": blank})
     if swiss:
@@ -509,13 +509,16 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
     fy = H - M + 2 * f
     out.append(f'<line x1="{M}" x2="{W - M}" y1="{fy - 6 * f:.2f}" y2="{fy - 6 * f:.2f}" stroke="{RULE}" stroke-width="0.3"/>')
     blanks = any(it["blank"] for it in items)  # no bullet: the «Ø» under them is the case
-    note = ((L["note1"] if abs(k - 1) < 1e-6 else L["noteK"]).format(size=US_SIZES.get(size, size.split("-")[0]), d=ratio)
-            + L["note2"].format(case=L["case_blanks" if blanks else "case"]))
-    out.append(f'<text x="{M}" y="{fy:.2f}" font-size="{fs_note:.2f}" fill="{MUTED}">{html.escape(note)}</text>')
-    if (len(note) + len(L["lic"]) + 4) * fs_note * 0.5 > content_w:  # no room side by side (Letter): the licence goes below
-        out.append(f'<text x="{M}" y="{fy + 1.35 * fs_note:.2f}" font-size="{fs_note:.2f}" fill="{MUTED}">{html.escape(L["lic"])}</text>')
-    else:
-        out.append(f'<text x="{W - M}" y="{fy:.2f}" font-size="{fs_note:.2f}" fill="{MUTED}" text-anchor="end">{html.escape(L["lic"])}</text>')
+    lines = [(L["note1"] if abs(k - 1) < 1e-6 else L["noteK"]).format(size=US_SIZES.get(size, size.split("-")[0]), d=ratio),
+             L["note2"].format(case=L["case_blanks" if blanks else "case"])]
+    # Widths are estimated: Inter runs 0.46 em a letter in English and 0.51 em in German.
+    if len("".join(lines)) * fs_note * 0.52 <= content_w:  # the note is one line where it fits (not: German on A4 or Letter)
+        lines = ["".join(lines)]
+    beside = (len(lines[-1]) + len(L["lic"]) + 4) * fs_note * 0.5 <= content_w  # the licence: right of the last line, or below it
+    for i, line in enumerate(lines + [L["lic"]] * (not beside)):
+        out.append(f'<text x="{M}" y="{fy + 1.35 * fs_note * i:.2f}" font-size="{fs_note:.2f}" fill="{MUTED}">{html.escape(line.strip())}</text>')
+    if beside:
+        out.append(f'<text x="{W - M}" y="{fy + 1.35 * fs_note * (len(lines) - 1):.2f}" font-size="{fs_note:.2f}" fill="{MUTED}" text-anchor="end">{html.escape(L["lic"])}</text>')
 
     over = y - (H - M - 10 * f)
     svg = (f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}mm" height="{H}mm" viewBox="0 0 {W} {H}" '

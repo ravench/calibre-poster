@@ -65,6 +65,7 @@ class LabelTests(unittest.TestCase):
             printed = texts(poster.build("A3", k, "de", names={"9x19 mm"})[0])
             self.assertIn(f"1 Patronen · Massstab {scale}", printed)
             self.assertTrue(printed[-2].startswith(f"Druck ohne Skalierung (100 %) auf A3: Massstab {scale}. Ø: "), printed[-2])
+            self.assertTrue(printed[-2].endswith(" Abmessungen gerundet nach CIP/SAAMI, Geschossform schematisch. Keine Ladedaten."), printed[-2])
 
     def test_no_label_prints_a_decimal_comma(self):
         quoted = {"Cart. 7,5 mm cadets", "Cart. 7,5 mm cadetti"}  # the Kadettenpatrone's French and Italian box labels
@@ -116,9 +117,9 @@ class LabelTests(unittest.TestCase):
 
     def test_the_footer_says_what_the_figures_under_a_cartridge_are(self):
         """«Ø» is the bullet of a cartridge and the case of a shot shell or a blank; the second figure is the overall length."""
-        names = LayoutTests.NAMES | {".58 Minié"}  # a loose bullet is no blank
+        names = LayoutTests.NAMES | {".58 Minié"}  # no case at all: not a blank
         for lang, legend, with_blanks in (
-                ("de", "Ø: Geschossdurchmesser (Flinten: Hülse), dann Gesamtlänge. ", "Ø: Geschossdurchmesser (Flinten und Knallpatronen: Hülse), dann Gesamtlänge. "),
+                ("de", "Ø: Geschossdurchmesser (Schrotpatronen: Hülse), dann Gesamtlänge. ", "Ø: Geschossdurchmesser (Schrot- und Knallpatronen: Hülse), dann Gesamtlänge. "),
                 ("en", "Ø: bullet diameter (shot shells: hull), then overall length. ", "Ø: bullet diameter (shot shells and blanks: case), then overall length. ")):
             for size in ("A1", "Letter"):
                 self.assertIn(legend, texts(poster.build(size, 1.0, lang, names=names)[0])[-2], f"{lang} {size}")
@@ -286,14 +287,36 @@ class TypeTests(unittest.TestCase):
             self.assertGreater(len(steps), 10, stem)
             self.assertGreaterEqual(min(steps), 8 * float(size), f"{lang}/{stem}")
 
-    def test_the_footer_note_fits_on_its_line_on_every_published_poster(self):
+    def footer(self, svg):
+        """(x, y, end by a generous estimate, text) of each line under the footer rule."""
+        lines = re.findall(r'<text x="([\d.]+)" y="([\d.]+)" font-size="([\d.]+)" fill="#6f675c"(?: text-anchor="end")?>([^<]+)</text>', svg)
+        lines = [(float(x), float(y), float(size), html.unescape(text)) for x, y, size, text in lines if "Ø: " in text or "©" in text or "(100" in text]
+        return [(x, y, x + len(text) * size * 0.52, text) for x, y, size, text in lines]  # Inter runs up to 0.51 em a letter (German)
+
+    def test_the_footer_note_fits_on_one_line_on_every_published_poster(self):
         for lang, _, _, stem in build.VERSIONS:
             with open(os.path.join(ROOT, lang, stem + ".svg"), encoding="utf-8") as f:
                 svg = f.read()
             width = float(re.search(r'viewBox="0 0 ([\d.]+) ', svg).group(1))
-            x, size, note = re.search(r'<text x="([\d.]+)" y="[\d.]+" font-size="([\d.]+)" fill="#6f675c">([^<]*Ø: [^<]*)<', svg).groups()
-            end = float(x) + len(html.unescape(note)) * float(size) * 0.5  # generous: the note runs about 0.47 em a letter
-            self.assertLess(end, width - float(x), f"{lang}/{stem}: the note is one line and must end inside the margin")
+            (x, _, end, note), (_, _, _, licence) = self.footer(svg)
+            self.assertIn("Ø: ", note)
+            self.assertTrue(note.endswith("Keine Ladedaten." if lang == "de" else "Not load data."), note)
+            self.assertLess(end, width - x, f"{lang}/{stem}: the note must end inside the margin")
+            self.assertIn("CC BY-NC 4.0", licence)
+
+    def test_the_footer_note_takes_two_lines_where_one_is_too_narrow(self):
+        """German runs longer: on A4 and Letter (not published in German) the legend starts a second line."""
+        for size in ("A4", "Letter"):
+            svg, (w, h), _, _ = poster.build(size, 1.0, "de", names=LayoutTests.NAMES | {"9 mm PA Blanc"})
+            first, second, licence = self.footer(svg)
+            self.assertTrue(first[3].endswith("Patronen in Originalgrösse."), first[3])
+            self.assertTrue(second[3].startswith("Ø: Geschossdurchmesser (Schrot- und Knallpatronen: Hülse)"), second[3])
+            self.assertTrue(licence[3].startswith("©"))
+            for x, y, end, text in (first, second, licence):
+                self.assertEqual(x, 14, text)
+                self.assertLess(end, w - 14, f"{size}: {text}")
+            self.assertEqual(sorted({first[1], second[1], licence[1]}), [first[1], second[1], licence[1]], "one under the other")
+            self.assertLess(licence[1], h - 7.5, "the third line still clears the sheet's edge")
 
     def test_the_licence_goes_below_the_note_where_both_do_not_fit_on_one_line(self):
         def footer(size):
