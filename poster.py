@@ -3,7 +3,7 @@
 
     python3 poster.py OUT_DIR [--size A1|A3|...] [--scale 1.0|0.5] [--lang de|en] [--fit | --swiss]
 
-Writes poster.svg (units = mm) and poster.html (for PDF rendering). build.py makes all
+Writes poster.svg (units = mm) and poster.html (the page render.js prints to PDF). build.py makes all
 published versions. --fit draws the most-listed calibres that fit the page; --swiss the Swiss
 service edition. Cartridges with identical measurements are drawn once with all names.
 """
@@ -79,6 +79,10 @@ ORDER = ["Luftdruck", "Randfeuer", "Kurzwaffe", "Langwaffe", "Flinte", "Schwarzp
 
 INK, MUTED, PAPER, RULE = "#1d1b18", "#6f675c", "#f6f1e7", "#cfc5b3"
 FONT = "Inter, 'Helvetica Neue', Arial, sans-serif"
+# Every SVG carries Inter in the four weights it uses, so it looks the same where Inter is not installed
+# and Chromium embeds real TrueType fonts in the PDFs (the installed OpenType Inter went in as Type 3).
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts", "inter-latin.css")) as _css:
+    FONT_CSS = _css.read().replace("\n", "")
 
 
 def fmt(x):
@@ -473,7 +477,7 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
             for aj, al in enumerate(extra):
                 ny += lh * 0.95 if aj == 0 else fs_sub * 1.2
                 t.append(f'<text x="{cx:.2f}" y="{ny:.2f}" text-anchor="middle" font-size="{fs_sub:.2f}" fill="{MUTED}">{html.escape(al)}</text>')
-            t.append(f'<text x="{cx:.2f}" y="{ny + fs_dim * 1.45:.2f}" text-anchor="middle" font-size="{fs_dim:.2f}" fill="{MUTED}" font-variant-numeric="tabular-nums">{html.escape(dims(it))}</text>')
+            t.append(f'<text x="{cx:.2f}" y="{ny + fs_dim * 1.45:.2f}" text-anchor="middle" font-size="{fs_dim:.2f}" fill="{MUTED}">{html.escape(dims(it))}</text>')
             out.extend(t)
             x += cw
         # category headers + baselines
@@ -503,8 +507,14 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
 
     over = y - (H - M - 10 * f)
     svg = (f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}mm" height="{H}mm" viewBox="0 0 {W} {H}" '
-           f'font-family="{FONT}">{defs()}<rect width="{W}" height="{H}" fill="{PAPER}"/>' + "".join(out) + "</svg>")
+           f'font-family="{FONT}"><style>{FONT_CSS}</style>{defs()}<rect width="{W}" height="{H}" fill="{PAPER}"/>' + "".join(out) + "</svg>")
     return svg, (W, H), over, len(rows)
+
+
+def page_html(svg):
+    """The page render.js prints. Chromium draws the SVG only to the last whole pixel, a tenth of a
+    millimetre short of the sheet's edge: the page behind it is paper-coloured, so no white line shows there."""
+    return f"<!doctype html><meta charset=utf-8><style>html,body{{margin:0;background:{PAPER}}}svg{{display:block}}</style>{svg}"
 
 
 if __name__ == "__main__":
@@ -515,7 +525,7 @@ if __name__ == "__main__":
     names = set(most_that_fit(size, lang)) if "--fit" in sys.argv else None
     svg, (W, H), over, nrows = build(size, k, lang, names=names, swiss="--swiss" in sys.argv or None)
     os.makedirs(out_dir, exist_ok=True)
-    open(os.path.join(out_dir, "poster.svg"), "w").write(svg)
-    open(os.path.join(out_dir, "poster.html"), "w").write(
-        f"<!doctype html><meta charset=utf-8><style>@page{{size:{W}mm {H}mm;margin:0}}html,body{{margin:0}}svg{{display:block}}</style>{svg}")
+    for name, text in (("poster.svg", svg), ("poster.html", page_html(svg))):
+        with open(os.path.join(out_dir, name), "w") as f:
+            f.write(text)
     print(f"{size} scale {k}: {nrows} rows, overflow {over:.1f} mm")
