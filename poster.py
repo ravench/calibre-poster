@@ -202,20 +202,36 @@ def label_lines(names):
     return [short_name(n) for n in names], [TEXT[LANG]["same"]]
 
 
+# Material colours as in the apps (Kaliberfinder CartridgeView, Schiesstagebuch alike), RGB 0..1.
+MATERIALS = {
+    "brass": (0.89, 0.76, 0.44),
+    "copper": (0.72, 0.45, 0.20),
+    "lead": (0.54, 0.55, 0.57),
+    "steel": (0.65, 0.68, 0.71),            # bare steel: bullet caps, jackets, a hybrid case's head
+    "lacquered": (0.42, 0.42, 0.33),        # a steel case
+    "nickel": (0.78, 0.80, 0.81),           # nickel-plated case, cupronickel jacket
+    "aluminium": (0.66, 0.68, 0.69),
+    "paper": (0.95, 0.93, 0.88),            # paper patch and case
+    "plastic": (0.97, 0.97, 0.96),          # airsoft BB
+    "polymer": (0.80, 0.10, 0.14),          # plastic tip
+    "hull": (0.75, 0.22, 0.17),             # shot shell
+}
+CASE_FILL = {"copper": "copper", "steel": "lacquered", "nickel": "nickel", "aluminium": "aluminium", "paper": "paper"}
+
+
+def shade(rgb, f):
+    """Darker (f < 1) or lighter towards white (f > 1), as #rrggbb."""
+    c = [v * f if f <= 1 else v + (1 - v) * (f - 1) for v in rgb]
+    return "#" + "".join(f"{round(max(0, min(1, v)) * 255):02x}" for v in c)
+
+
 def defs():
-    def lg(id, stops):
+    """One horizontal gradient per material around the app's colour: dark edges, a highlight left of centre."""
+    def lg(id, rgb):
+        stops = [(0, shade(rgb, 0.6)), (0.38, shade(rgb, 1.45)), (0.58, shade(rgb, 1.0)), (1, shade(rgb, 0.55))]
         s = "".join(f'<stop offset="{o}" stop-color="{c}"/>' for o, c in stops)
         return f'<linearGradient id="{id}" x1="0" x2="1" y1="0" y2="0">{s}</linearGradient>'
-    return "<defs>" + "".join([
-        lg("brass", [(0, "#a8802f"), (0.35, "#f3dc94"), (0.55, "#e2bf63"), (1, "#9c752a")]),
-        lg("copper", [(0, "#7c4019"), (0.35, "#e0a06a"), (0.55, "#c07438"), (1, "#713a17")]),
-        lg("lead", [(0, "#55585c"), (0.38, "#c9cdd1"), (0.58, "#9a9fa5"), (1, "#4c4f53")]),
-        lg("steel", [(0, "#5f656b"), (0.38, "#e1e5e8"), (0.58, "#aeb4ba"), (1, "#565b60")]),
-        lg("paper", [(0, "#cfc8b8"), (0.38, "#fffdf7"), (0.58, "#f1ebdd"), (1, "#c6bfae")]),
-        lg("nickel", [(0, "#7d8084"), (0.38, "#f2f3f4"), (0.58, "#c9ccd0"), (1, "#74777b")]),
-        lg("polymer", [(0, "#8a1c1c"), (0.38, "#e8584a"), (0.58, "#c73a2e"), (1, "#7a1818")]),
-        lg("hull", [(0, "#7d1d17"), (0.38, "#d9574a"), (0.58, "#b7352b"), (1, "#701a14")]),
-    ]) + "</defs>"
+    return "<defs>" + "".join(lg(k, v) for k, v in MATERIALS.items()) + "</defs>"
 
 
 def cartridge_svg(c, o, x, base_y, k):
@@ -225,7 +241,7 @@ def cartridge_svg(c, o, x, base_y, k):
     stroke = 'stroke="#3a2c18" stroke-width="{:.3f}" stroke-linejoin="round"'.format(0.14 / k)
     lead = c["kind"] in (BALL, MINIE, PELLET)
     parts = []
-    case_fill = {"copper": "copper", "steel": "steel", "nickel": "nickel", "paper": "paper"}.get(o.get("caseMaterial"), "brass")
+    case_fill = CASE_FILL.get(o.get("caseMaterial"), "brass")
     if "case" in o:
         parts.append(f'<path d="{o["case"]}" fill="url(#{"hull" if c["kind"] == SHOT else case_fill})" {stroke}/>')
     if "head" in o:
@@ -233,7 +249,7 @@ def cartridge_svg(c, o, x, base_y, k):
     if "bullet" in o:
         bm = o.get("bulletMaterial")
         # a silver (cupronickel) jacket, a white plastic BB
-        metal = {"steel": "steel", "cupronickel": "nickel", "plastic": "paper"}.get(bm) or ("lead" if lead or bm == "lead" else "copper")
+        metal = {"steel": "steel", "cupronickel": "nickel", "plastic": "plastic"}.get(bm) or ("lead" if lead or bm == "lead" else "copper")
         parts.append(f'<path d="{o["bullet"]}" fill="url(#{metal})" {stroke}/>')
     if "tip" in o:  # soft point (lead) or polymer tip
         parts.append(f'<path d="{o["tip"]}" fill="url(#{"polymer" if o.get("tipMaterial") == "polymer" else "lead"})" {stroke}/>')
