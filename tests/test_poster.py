@@ -247,19 +247,34 @@ class SelectionTests(unittest.TestCase):
             shown_cats = {cat_of[n] for n in names}
             pool = [n for n in poster.ranked() if cat_of[n] in shown_cats]
             self.assertEqual(names, pool[:len(names)], "a prefix of the ranking, less the left-out sections")
-            self.assertLessEqual(poster.build(size, 1.0, "de", names=set(names))[2], 0)
-            self.assertGreater(poster.build(size, 1.0, "de", names=set(pool[:len(names) + 1]))[2], 0)
+            self.assertLessEqual(poster.build(size, 1.0, "de", names=set(names))[2], poster.OVERRUN)
+            self.assertGreater(poster.build(size, 1.0, "de", names=set(pool[:len(names) + 1]))[2], poster.OVERRUN)
 
-    def test_no_section_of_only_a_few_airgun_or_black_powder(self):
+    def test_the_search_fills_the_page_as_far_as_the_build_allows(self):
+        # build.py accepts a last row that runs OVERRUN mm past the content edge; the search stops there too
+        # and not 2 mm earlier, which cost A0 a whole row.
+        self.addCleanup(setattr, poster, "build", poster.build)
+        poster.build = lambda size, k, lang, names: (None, None, len(names) - 8.5, 1)  # 9 names: 0.5 mm over
+        pool = [f"calibre {i}" for i in range(30)]
+        self.assertEqual(len(poster._prefix_that_fits("A0", "de", pool)), 10, "1.5 mm over still fits, 2.5 mm does not")
+        self.assertEqual(poster.OVERRUN, 2.0)
+
+    def test_no_air_gun_and_no_section_of_only_a_few_black_powder(self):
         cat_of = {s["name"]: cat for cat, items in CATALOGUE for s in items}
+        self.assertEqual(sum(cat == "Luftdruck" for cat in cat_of.values()), 5, "the catalogue has them")
         for lang, size, edition, stem in build.VERSIONS:
             if edition != "fit":
                 continue
             names = poster.most_that_fit(size, lang)
+            with self.subTest(stem=stem):
+                self.assertEqual([x for x in names if cat_of[x] in poster.LEFT_OUT], [])
             for cat in poster.SMALL_SECTIONS:
                 with self.subTest(stem=stem, cat=cat):
                     n = sum(cat_of[x] == cat for x in names)
                     self.assertTrue(n == 0 or n >= poster.MIN_SECTION, n)
+        # also from a pool that ranks every air-gun calibre first
+        air_first = sorted(poster.ranked(), key=lambda n: cat_of[n] != "Luftdruck")
+        self.assertEqual([x for x in poster.most_that_fit("A3", pool=air_first) if cat_of[x] == "Luftdruck"], [])
         a1 = poster.most_that_fit("A1")
         self.assertGreaterEqual(sum(cat_of[x] == "Schwarzpulver" for x in a1), poster.MIN_SECTION)  # big sheets keep it
         self.assertFalse(any(cat_of[x] == "Schwarzpulver" for x in poster.most_that_fit("A3")))

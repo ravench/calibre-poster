@@ -29,7 +29,7 @@ def version(lang, size, edition):
 def build(render=False):
     for lang, size, edition, stem in VERSIONS:
         svg, (w, h), over, _ = version(lang, size, edition)
-        assert over <= 2.0, f"{stem}: content runs {over:.1f} mm into the footer"
+        assert over <= poster.OVERRUN, f"{stem}: content runs {over:.1f} mm into the footer"
         out = os.path.join(ROOT, lang)
         os.makedirs(out, exist_ok=True)
         with open(os.path.join(out, stem + ".svg"), "w") as f:
