@@ -24,8 +24,8 @@ Print without scaling (100 %); the scale bar at the top lets you check. Cartridg
 measurements (.308 Win / 7.62 NATO, .223 Rem / 5.56 NATO / GP 90) are drawn once
 with all their names. Bullet and case materials (lead, soft point, polymer tip, steel, nickel and copper
 cases, silver jackets) come from the calibre data. Dimensions are rounded per CIP/SAAMI and bullet shapes are schematic;
-this is not load data. The Swiss poster uses a Swiss designation (Pist Pat 03, Pist Pat 41, GP 1890,
-GP 11, GP 90) only where a source gives one.
+this is not load data. The Swiss poster uses a Swiss designation (Pist Pat 03, Pist Pat 41, Patrone Modell 1890,
+Kadettenpatrone, GP 11, GP 90) only where a source gives one.
 
 ## Building
 

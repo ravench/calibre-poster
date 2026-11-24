@@ -50,8 +50,8 @@ TEXT = {
         lic="© 2026 Simon Giotta · Licence CC BY-NC 4.0 · creativecommons.org/licenses/by-nc/4.0",
         same="identical dimensions",
         names={"Rundkugel": "Round Ball", "Browning kurz": "Browning Short", "11,43 mm": "11.43 mm",
-               "12,7x99": "12.7x99", "Gewehrpatrone 1890": "Swiss cartridge 1890", "Randfeuer": "rimfire", "Zentralfeuer": "centrefire",
-               "Milbank-Amsler-Gewehr": "Milbank-Amsler rifle", "Gewehr 1889": "Rifle 1889", "Pistole": "Pistol",
+               "12,7x99": "12.7x99", "Randfeuer": "rimfire", "Zentralfeuer": "centrefire",
+               "Milbank-Amsler-Gewehr": "Milbank-Amsler rifle", "Gewehr 1889": "Rifle 1889", "Kadettengewehr 1897": "Cadet rifle 1897", "Pistole": "Pistol",
                "Mehrzweckgewehr": "Multi-purpose gun"},
         swiss_title="Swiss Army Service Cartridges", swiss_sub="{n} cartridges from 1867 to today · {scale}", swiss_cat="Since 1867"),
 }
@@ -82,14 +82,15 @@ MERGED = set()  # names to leave out of the poster
 
 # Swiss service edition: every small-arms cartridge the Swiss army adopted, oldest first.
 # The Swiss name is used only where a source gives it (Pist Pat 03/41: de.wikipedia «7,65 x 21 mm Luger»,
-# sigforum Pist Pat 41 box; GP 11 / GP 90 / GP 1890 as in the calibre data); otherwise the usual name.
+# sigforum Pist Pat 41 box; GP 11, GP 90, Patrone Modell 1890 and Kadettenpatrone as in the calibre data); otherwise the usual name.
 SWISS_SERVICE = [  # (catalogue name, Swiss name, international name, year adopted, weapons); Swiss name only where sourced
     ("18 mm Milbank-Amsler", "18 mm Milbank-Amsler", "", 1867, "Milbank-Amsler-Gewehr"),
     ("10.4x38 mm R Vetterli", "10,4x38 R Vetterli", "", 1867, "Peabody 1867, Vetterli 1869"),
     ("10.4 mm Swiss Ordnance 1872 Rimfire", "10,4 mm Randfeuer", "", 1872, "Revolver 1872"),
     ("10.4 mm Swiss Ordnance 1878", "10,4 mm Zentralfeuer", "", 1878, "Revolver 1872/78"),
     ("7.5 mm Swiss Ordnance 1882", "7,5x23 R", "", 1882, "Revolver 1882"),
-    ("7.5x53.5 mm Swiss (Patrone Modell 1890)", "GP 1890", "7,5x53,5", 1889, "Gewehr 1889"),
+    ("7.5x53.5 mm Swiss (Patrone Modell 1890)", "Patrone Modell 1890", "7,5x53,5", 1890, "Gewehr 1889"),
+    ("7.5 mm Kadettenpatrone", "Kadettenpatrone", "7,5x54,6", 1897, "Kadettengewehr 1897"),
     ("7.65 mm Parabellum", "Pist Pat 03", "7,65 mm Parabellum", 1900, "Pistole 1900, 1906, 06/29"),
     ("7.5x55 mm Swiss (GP 11)", "GP 11", "7,5x55", 1911, "K11, K31, Lmg 25, Mg 51, Stgw 57"),
     ("9x19 mm", "Pist Pat 41", "9 mm Parabellum", 1941, "Pistole 49, Pistole 75, Mp 14"),
