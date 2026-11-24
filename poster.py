@@ -24,6 +24,7 @@ SIZES = {"A0": (841, 1189), "A1": (594, 841), "A2": (420, 594), "A3": (297, 420)
 LANG = "de"
 FS = 0.58
 SUB_GAP = 12  # title baseline to subtitle baseline, in typography units (mm at A1 size)
+TIP_GAP = 3.0  # mm between a row's tallest cartridge and the header rule above it, on every size
 TEXT = {
     "de": dict(
         cats={"Luftdruck": "Luftdruck", "Randfeuer": "Randfeuer", "Kurzwaffe": "Kurzwaffen", "Langwaffe": "Langwaffen",
@@ -326,7 +327,7 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
     label_h = 3 * lh + 2 * fs_sub * 1.2 + fs_dim * 1.6 + 2 * f
     if swiss:
         label_h += 4 * fs_sub * 1.2
-    head_h = 9 * f
+    head_h = 6 * f + TIP_GAP  # the header's type and rule, then clear air above the tallest tip
     gap_cat = 9 * f
     content_w = W - 2 * M
 
@@ -375,10 +376,11 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
     loose = any(it["kind"] in (BALL, MINIE, PELLET) for it in items)
     subtitle = L["swiss_sub"] if swiss else L["sub_loose"] if loose else L["sub"]
     ratio = f"{round(1 / k, 1):g}"  # «1:2», «1:2.5», «1:3.3»
-    out.append(f'<text x="{M}" y="{title_y:.2f}" font-size="{19 * f:.2f}" font-weight="800" letter-spacing="-0.4" fill="{INK}">{html.escape(T1)}</text>')
+    out.append(f'<text x="{M}" y="{title_y:.2f}" font-size="{19 * f:.2f}" font-weight="800" letter-spacing="{-0.4 * f:.2f}" fill="{INK}">{html.escape(T1)}</text>')
     out.append(f'<text x="{M}" y="{title_y + SUB_GAP * f:.2f}" font-size="{5 * f:.2f}" fill="{MUTED}">{html.escape(subtitle.format(n=sum(len(it["names"]) for it in items), scale=L["actual"] if abs(k - 1) < 1e-6 else L["scaled"].format(d=ratio)))}</text>')
     # scale bar 0-100 mm (true size on print)
-    bx, by = W - M - 100 * k, title_y - 3 * f
+    unit_w = 7.2 * f  # room right of the bar for half of «100», a gap and «mm», which ends at the margin
+    bx, by = W - M - unit_w - 100 * k, title_y - 3 * f
     if M + len(T1) * 19 * f * 0.56 > bx - 6 * f:  # long title: scale bar moves down beside the subtitle
         sub_w = M + 60 * 5 * f * 0.5  # subtitle is about 60 characters
         by = title_y + (SUB_GAP if sub_w < bx - 4 * f else SUB_GAP + 6) * f
@@ -390,7 +392,7 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
         out.append(f'<line x1="{x:.3f}" x2="{x:.3f}" y1="{by}" y2="{by - t * f:.3f}" stroke="{INK}" stroke-width="{0.3 if mm % 10 == 0 else 0.18}"/>')
         if mm % 10 == 0:
             out.append(f'<text x="{x:.3f}" y="{by + 3.4 * f:.3f}">{mm}</text>')
-    out.append(f'<text x="{bx + 100 * k + 2 * f:.2f}" y="{by + 3.4 * f:.3f}" text-anchor="start">mm</text></g>')
+    out.append(f'<text x="{W - M}" y="{by + 3.4 * f:.3f}" text-anchor="end">mm</text></g>')
 
     y = title_y + 22 * f
     row_layouts = []
@@ -441,9 +443,9 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
             is_start = row[[it["cat"] for it in row].index(cat)] is first
             n = sum(len(it["names"]) for it in items if it["cat"] == cat)
             label = L["cats"][cat] + ("" if is_start else L["cont"])
-            hy = base - tallest - 3.2 * f
+            hy = base - tallest - TIP_GAP - 1.6 * f
             if L["cats"][cat]:
-                out.append(f'<text x="{x0 + 1:.2f}" y="{hy:.2f}" font-size="{3.3 * f:.2f}" font-weight="700" letter-spacing="0.5" fill="{INK}">{html.escape(label.upper())}'
+                out.append(f'<text x="{x0 + 1:.2f}" y="{hy:.2f}" font-size="{3.3 * f:.2f}" font-weight="700" letter-spacing="{0.5 * f:.2f}" fill="{INK}">{html.escape(label.upper())}'
                            + (f'<tspan fill="{MUTED}" font-weight="400"> · {n}</tspan>' if is_start else "") + '</text>')
                 out.append(f'<line x1="{x0 + 1:.2f}" x2="{x1 - 1:.2f}" y1="{hy + 1.6 * f:.2f}" y2="{hy + 1.6 * f:.2f}" stroke="{RULE}" stroke-width="0.25"/>')
             out.append(f'<line x1="{x0 + 1:.2f}" x2="{x1 - 1:.2f}" y1="{base:.2f}" y2="{base:.2f}" stroke="{INK}" stroke-width="0.3"/>')
