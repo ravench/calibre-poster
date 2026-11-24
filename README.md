@@ -9,7 +9,8 @@ measurement, the shoulder angle and the extractor groove come from a source (`ou
 in the calibre data; 736 of its 761 small-arms calibres today; cannon rounds are left out). A calibre left out comes back when its missing
 values are sourced there. They do not fit on one sheet at 1:1, so each size shows the calibres
 listed for sale most often that fit on it ([listing-share.json](listing-share.json): share of listings on the big gun
-marketplaces, counted 2026-11-04).
+marketplaces, counted 2026-11-04). Air-gun pellets and black-powder rounds get a section only where at least
+five of them fit; otherwise their space goes to the next calibres in that order.
 
 | | German | English |
 |---|---|---|
