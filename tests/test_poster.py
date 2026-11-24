@@ -64,8 +64,7 @@ class LabelTests(unittest.TestCase):
         for k, scale in ((0.5, "1:2"), (0.4, "1:2.5"), (0.3, "1:3.3")):  # no «.0», one decimal at most
             printed = texts(poster.build("A3", k, "de", names={"9x19 mm"})[0])
             self.assertIn(f"1 Patronen · Massstab {scale}", printed)
-            self.assertIn(f"Druck ohne Skalierung (100 %) auf A3: Massstab {scale}. Abmessungen gerundet nach CIP/SAAMI, "
-                          "Geschossform schematisch. Keine Ladedaten.", printed)
+            self.assertTrue(printed[-2].startswith(f"Druck ohne Skalierung (100 %) auf A3: Massstab {scale}. Ø: "), printed[-2])
 
     def test_no_label_prints_a_decimal_comma(self):
         quoted = {"Cart. 7,5 mm cadets", "Cart. 7,5 mm cadetti"}  # the Kadettenpatrone's French and Italian box labels
@@ -114,6 +113,22 @@ class LabelTests(unittest.TestCase):
         printed = texts(poster.build("A3", 1.0, "de", names={"9x19 mm", ".308 Winchester", "12/70"})[0])
         for header in ("KURZWAFFEN", "LANGWAFFEN", "FLINTEN"):
             self.assertIn(header, printed)
+
+    def test_the_footer_says_what_the_figures_under_a_cartridge_are(self):
+        """«Ø» is the bullet of a cartridge and the case of a shot shell or a blank; the second figure is the overall length."""
+        names = LayoutTests.NAMES | {".58 Minié"}  # a loose bullet is no blank
+        for lang, legend, with_blanks in (
+                ("de", "Ø: Geschossdurchmesser (Flinten: Hülse), dann Gesamtlänge. ", "Ø: Geschossdurchmesser (Flinten und Knallpatronen: Hülse), dann Gesamtlänge. "),
+                ("en", "Ø: bullet diameter (shot shells: hull), then overall length. ", "Ø: bullet diameter (shot shells and blanks: case), then overall length. ")):
+            for size in ("A1", "Letter"):
+                self.assertIn(legend, texts(poster.build(size, 1.0, lang, names=names)[0])[-2], f"{lang} {size}")
+            for blank in (".22 Long Blanc", "9 mm PA Blanc"):  # star-crimped, and closed inside a plain cylinder
+                self.assertIn(with_blanks, texts(poster.build("A1", 1.0, lang, names=names | {blank})[0])[-2], f"{lang} {blank}")
+        shell = next(s for s in ALL if s["name"] == "12/70")
+        self.assertLess(shell["base"], shell["rim"])
+        self.assertEqual(poster.dims(dict(shell, outline=outline.outline(shell))), f"Ø {poster.fmt(shell['base'])} · {poster.fmt(shell['oal'])} mm", "the hull, not the rim, and the length as crimped")
+        blank = next(s for s in ALL if s["name"] == ".22 Long Blanc")
+        self.assertEqual(poster.dims(dict(blank, outline=outline.outline(blank))), f"Ø {poster.fmt(blank['base'])} · {poster.fmt(blank['case'])} mm", "a blank's case")
 
 
 class BuildTests(unittest.TestCase):
@@ -271,6 +286,15 @@ class TypeTests(unittest.TestCase):
             self.assertGreater(len(steps), 10, stem)
             self.assertGreaterEqual(min(steps), 8 * float(size), f"{lang}/{stem}")
 
+    def test_the_footer_note_fits_on_its_line_on_every_published_poster(self):
+        for lang, _, _, stem in build.VERSIONS:
+            with open(os.path.join(ROOT, lang, stem + ".svg"), encoding="utf-8") as f:
+                svg = f.read()
+            width = float(re.search(r'viewBox="0 0 ([\d.]+) ', svg).group(1))
+            x, size, note = re.search(r'<text x="([\d.]+)" y="[\d.]+" font-size="([\d.]+)" fill="#6f675c">([^<]*Ø: [^<]*)<', svg).groups()
+            end = float(x) + len(html.unescape(note)) * float(size) * 0.5  # generous: the note runs about 0.47 em a letter
+            self.assertLess(end, width - float(x), f"{lang}/{stem}: the note is one line and must end inside the margin")
+
     def test_the_licence_goes_below_the_note_where_both_do_not_fit_on_one_line(self):
         def footer(size):
             svg = poster.build(size, 1.0, "en", names=self.NAMES)[0]
@@ -281,8 +305,8 @@ class TypeTests(unittest.TestCase):
         self.assertEqual((x, end), (note_x, None), "flush left, under the note")
         self.assertGreater(y - note_y, poster.MIN_TEXT)
         self.assertLess(y, poster.SIZES["Letter"][1] - 10, "and still 10 mm inside the sheet")
-        (note_x, note_y), (x, y), end = footer("11x17in")
-        self.assertEqual((y, x), (note_y, poster.SIZES["11x17in"][0] - 14), "side by side where there is room")
+        (note_x, note_y), (x, y), end = footer("A3")
+        self.assertEqual((y, x), (note_y, poster.SIZES["A3"][0] - 14), "side by side where there is room")
         self.assertTrue(end)
 
 

@@ -9,7 +9,7 @@ service edition. Cartridges with identical measurements are drawn once with all 
 """
 import os, re, sys, html
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "calibre-data"))
-from cartridges import SHOT, BALL, MINIE, PELLET  # noqa: E402
+from cartridges import SHOT, BALL, MINIE, PELLET, LOOSE, is_blank  # noqa: E402
 import cartridges  # noqa: E402
 from outline import outline, well_sourced  # noqa: E402
 
@@ -39,7 +39,8 @@ TEXT = {
         actual="Originalgrösse (Massstab 1:1)", scaled="Massstab 1:{d}",
         note1="Druck ohne Skalierung (100 %) auf {size}: Patronen in Originalgrösse. ",
         noteK="Druck ohne Skalierung (100 %) auf {size}: Massstab 1:{d}. ",
-        note2="Abmessungen gerundet nach CIP/SAAMI, Geschossform schematisch. Keine Ladedaten.",
+        note2="Ø: Geschossdurchmesser ({case}), dann Gesamtlänge. Abmessungen gerundet nach CIP/SAAMI, Geschossform schematisch. Keine Ladedaten.",
+        case="Flinten: Hülse", case_blanks="Flinten und Knallpatronen: Hülse",  # what «Ø» is where there is no bullet
         lic="© 2026 Simon Giotta · Lizenz CC BY-NC 4.0 · creativecommons.org/licenses/by-nc/4.0",
         same="gleiche Abmessungen",  # not «Masse»: with the Swiss ss that also reads as «mass»
         swiss_title="Ordonnanzpatronen der Schweizer Armee", swiss_sub="{n} Patronen von 1867 bis heute · {scale}",
@@ -52,7 +53,8 @@ TEXT = {
         actual="Actual size (scale 1:1)", scaled="Scale 1:{d}",
         note1="Print without scaling (100 %) on {size}: cartridges at actual size. ",
         noteK="Print without scaling (100 %) on {size}: scale 1:{d}. ",
-        note2="Dimensions rounded per CIP/SAAMI, bullet shapes schematic. Not load data.",
+        note2="Ø: bullet diameter ({case}), then overall length. Dimensions rounded per CIP/SAAMI, bullet shapes schematic. Not load data.",
+        case="shot shells: hull", case_blanks="shot shells and blanks: case",
         lic="© 2026 Simon Giotta · Licence CC BY-NC 4.0 · creativecommons.org/licenses/by-nc/4.0",
         same="identical dimensions",
         names={"Rundkugel": "Round Ball", "Browning kurz": "Browning Short", "Setzkartusche ": "", "Randfeuer": "Rimfire", "Zentralfeuer": "Centrefire",
@@ -352,8 +354,9 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
             sub = cat if cat != "Schwarzpulver" else ("SP_Geschoss" if s["kind"] in (BALL, MINIE) else "SP_Patrone")
             if swiss:
                 sub = "CH"
+            blank = s["kind"] not in LOOSE and is_blank(s["profile"], s["rim"], s["base"], s["neck"], s["bullet"], s["case"], s["oal"])
             items.append({"cat": sub, "name": s["name"], "names": g["names"], "kind": s["kind"], "bullet": s["bullet"],
-                          "oal": s["oal"], "outline": g["outline"]})
+                          "oal": s["oal"], "outline": g["outline"], "blank": blank})
     if swiss:
         items.sort(key=lambda it: [s[0] for s in swiss].index(it["name"]))
         L = dict(L, cats=dict(L["cats"], CH=""))  # one section: the title and subtitle already say what it is
@@ -505,7 +508,9 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
 
     fy = H - M + 2 * f
     out.append(f'<line x1="{M}" x2="{W - M}" y1="{fy - 6 * f:.2f}" y2="{fy - 6 * f:.2f}" stroke="{RULE}" stroke-width="0.3"/>')
-    note = (L["note1"] if abs(k - 1) < 1e-6 else L["noteK"]).format(size=US_SIZES.get(size, size.split("-")[0]), d=ratio) + L["note2"]
+    blanks = any(it["blank"] for it in items)  # no bullet: the «Ø» under them is the case
+    note = ((L["note1"] if abs(k - 1) < 1e-6 else L["noteK"]).format(size=US_SIZES.get(size, size.split("-")[0]), d=ratio)
+            + L["note2"].format(case=L["case_blanks" if blanks else "case"]))
     out.append(f'<text x="{M}" y="{fy:.2f}" font-size="{fs_note:.2f}" fill="{MUTED}">{html.escape(note)}</text>')
     if (len(note) + len(L["lic"]) + 4) * fs_note * 0.5 > content_w:  # no room side by side (Letter): the licence goes below
         out.append(f'<text x="{M}" y="{fy + 1.35 * fs_note:.2f}" font-size="{fs_note:.2f}" fill="{MUTED}">{html.escape(L["lic"])}</text>')
