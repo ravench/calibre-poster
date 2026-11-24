@@ -25,6 +25,9 @@ LANG = "de"
 FS = 0.58
 SUB_GAP = 12  # title baseline to subtitle baseline, in typography units (mm at A1 size)
 TIP_GAP = 3.0  # mm between a row's tallest cartridge and the header rule above it, on every size
+# No name is set smaller than 6 pt and no other line smaller than 5 pt: in mm, rounded up to the two
+# decimals a font size is written with (6 pt = 2.117 mm, 5 pt = 1.764 mm).
+MIN_NAME, MIN_TEXT = 2.12, 1.77
 TEXT = {
     "de": dict(
         cats={"Luftdruck": "Luftdruck", "Randfeuer": "Randfeuer", "Kurzwaffe": "Kurzwaffen", "Langwaffe": "Langwaffen",
@@ -136,7 +139,7 @@ MIN_SECTION = 5
 LOOK_AHEAD = 50
 # A page counts as full when its last row's label area ends more than this many mm below the content
 # edge. The area is sized for the longest label and 12 units of type clear the footer rule below it,
-# so 2 mm cost nothing, and they give A0 its tenth row.
+# so 2 mm cost nothing, and a sheet that misses its last row by a hair keeps it.
 OVERRUN = 2.0
 
 
@@ -301,7 +304,7 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
     L = TEXT[lang]
     W, H = SIZES[size]
     small = W < 400
-    # typography: small paper keeps text legible; big paper keeps A1-sized text so it holds more cartridges
+    # typography: big paper keeps A1-sized text so it holds more cartridges; small paper shrinks it, down to MIN_NAME and MIN_TEXT
     f = FS if small else min(1.0, max(0.8, W / 594))
     if swiss is True:
         swiss = SWISS_SERVICE
@@ -330,19 +333,30 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
         items.sort(key=lambda it: [s[0] for s in swiss].index(it["name"]))
         L = dict(L, cats=dict(L["cats"], CH=""))  # one section: the title and subtitle already say what it is
 
-    fs_name, fs_sub, fs_dim = 2.55 * f, 2.05 * f, 1.85 * f
+    fs_name, fs_sub, fs_dim = max(2.55 * f, MIN_NAME), max(2.05 * f, MIN_TEXT), max(1.85 * f, MIN_TEXT)
+    fs_note = max(2.4 * f, MIN_TEXT)  # footer
+    fs_scale = max(2.2 * f, MIN_TEXT)  # figures under the scale bar
     lh = fs_name * 1.18
-    label_h = 3 * lh + 2 * fs_sub * 1.2 + fs_dim * 1.6 + 2 * f
-    if swiss:
-        label_h += 4 * fs_sub * 1.2
+    for it in items:  # the lines under each cartridge: its names, then the aliases (Swiss edition: year and weapons)
+        it["lines"], it["sub"] = label_lines(it["names"])
+        if swiss:
+            _, disp, intl, yr, wp = SW[it["name"]]
+            disp, intl, wp = (tr(t) for t in (disp, intl, wp))
+            it["lines"] = wrap(disp.split(" "), 13)
+            weapons = wrap(wp.split(", "), 18, ", ")  # break between weapons, never inside «Pistole 75»
+            it["sub"] = (wrap(intl.split(" "), 19) if intl else []) + [str(yr)] + [w + "," for w in weapons[:-1]] + weapons[-1:]
+
+    def label_h(it):  # from the baseline the cartridge stands on to the foot of its dimension line
+        aliases = lh * 0.95 + fs_sub * 1.2 * (len(it["sub"]) - 1) if it["sub"] else 0
+        return 1.7 * fs_name + lh * (len(it["lines"]) - 1) + aliases + fs_dim * 1.8
     head_h = 6 * f + TIP_GAP  # the header's type and rule, then clear air above the tallest tip
     gap_cat = 9 * f
     content_w = W - 2 * M
 
     def cell_w(it):
-        w = max((21 if small else 24.5) * f, it["outline"]["width"] * k + 6 * f)
+        w = max((8.2 if small else 9.6) * fs_name, it["outline"]["width"] * k + 6 * f)  # room for a 13-letter line
         if len(it["names"]) > 1:  # combined label: room for the longest name on one line
-            w = max(w, max(len(n) for n in label_lines(it["names"])[0]) * fs_name * 0.56 + 2 * f)
+            w = max(w, max(len(n) for n in it["lines"]) * fs_name * 0.62 + 2 * f)
         return w
 
     # Rows: flow the categories in order and break when a row is full.
@@ -387,32 +401,31 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
     out.append(f'<text x="{M}" y="{title_y:.2f}" font-size="{19 * f:.2f}" font-weight="800" letter-spacing="{-0.4 * f:.2f}" fill="{INK}">{html.escape(T1)}</text>')
     out.append(f'<text x="{M}" y="{title_y + SUB_GAP * f:.2f}" font-size="{5 * f:.2f}" fill="{MUTED}">{html.escape(subtitle.format(n=sum(len(it["names"]) for it in items), scale=L["actual"] if abs(k - 1) < 1e-6 else L["scaled"].format(d=ratio)))}</text>')
     # scale bar 0-100 mm (true size on print)
-    unit_w = 7.2 * f  # room right of the bar for half of «100», a gap and «mm», which ends at the margin
+    unit_w = 3.3 * fs_scale  # room right of the bar for half of «100», a gap and «mm», which ends at the margin
     bx, by = W - M - unit_w - 100 * k, title_y - 3 * f
     if M + len(T1) * 19 * f * 0.56 > bx - 6 * f:  # long title: scale bar moves down beside the subtitle
         sub_w = M + 60 * 5 * f * 0.5  # subtitle is about 60 characters
         by = title_y + (SUB_GAP if sub_w < bx - 4 * f else SUB_GAP + 6) * f
-    out.append(f'<g font-size="{2.2 * f:.2f}" fill="{MUTED}" text-anchor="middle">')
-    out.append(f'<line x1="{bx}" x2="{bx + 100 * k}" y1="{by}" y2="{by}" stroke="{INK}" stroke-width="0.35"/>')
+    out.append(f'<g font-size="{fs_scale:.2f}" fill="{MUTED}" text-anchor="middle">')
+    out.append(f'<line x1="{bx:.3f}" x2="{bx + 100 * k:.3f}" y1="{by:.3f}" y2="{by:.3f}" stroke="{INK}" stroke-width="0.35"/>')
     for mm in range(0, 101):
         t = 4 if mm % 10 == 0 else (2.6 if mm % 5 == 0 else 1.5)
         x = bx + mm * k
-        out.append(f'<line x1="{x:.3f}" x2="{x:.3f}" y1="{by}" y2="{by - t * f:.3f}" stroke="{INK}" stroke-width="{0.3 if mm % 10 == 0 else 0.18}"/>')
+        out.append(f'<line x1="{x:.3f}" x2="{x:.3f}" y1="{by:.3f}" y2="{by - t * f:.3f}" stroke="{INK}" stroke-width="{0.3 if mm % 10 == 0 else 0.18}"/>')
         if mm % 10 == 0:
-            out.append(f'<text x="{x:.3f}" y="{by + 3.4 * f:.3f}">{mm}</text>')
-    out.append(f'<text x="{W - M}" y="{by + 3.4 * f:.3f}" text-anchor="end">mm</text></g>')
+            out.append(f'<text x="{x:.3f}" y="{by + 1.55 * fs_scale:.3f}">{mm}</text>')
+    out.append(f'<text x="{W - M}" y="{by + 1.55 * fs_scale:.3f}" text-anchor="end">mm</text></g>')
 
     y = title_y + 22 * f
     row_layouts = []
     for row in rows:
-        starts = any(i == 0 or it["cat"] != row[i - 1]["cat"] for i, it in enumerate(row)) or True
         tallest = max(it["outline"]["height"] for it in row) * k
-        row_layouts.append((row, tallest))
-    total = sum(head_h + t + label_h + 6 * f for _, t in row_layouts)
+        row_layouts.append((row, tallest, max(label_h(it) for it in row)))  # a row is as tall as its longest label
+    total = sum(head_h + t + lab + 6 * f for _, t, lab in row_layouts)
     avail = H - M - 16 * f - y
     spare = max(0, avail - total) / max(1, len(rows))
 
-    for row, tallest in row_layouts:
+    for row, tallest, labels in row_layouts:
         y += head_h + spare / 2
         base = y + tallest
         x = M
@@ -426,14 +439,8 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
             else:
                 groups[-1][2] = x + cw
             out.append(cartridge_svg(it, it["outline"], cx, base, k))
-            lines, extra = label_lines(it["names"])
-            if swiss:
-                _, disp, intl, yr, wp = SW[it["name"]]
-                disp, intl, wp = (tr(t) for t in (disp, intl, wp))
-                lines = wrap(disp.split(" "), 13)
-                weapons = wrap(wp.split(", "), 18, ", ")  # break between weapons, never inside «Pistole 75»
-                extra = (wrap(intl.split(" "), 19) if intl else []) + [str(yr)] + [w + "," for w in weapons[:-1]] + weapons[-1:]
-            ty = base + 4.3 * f
+            lines, extra = it["lines"], it["sub"]
+            ty = base + 1.7 * fs_name
             t = [f'<text x="{cx:.2f}" y="{ty:.2f}" text-anchor="middle" font-size="{fs_name:.2f}" font-weight="600" fill="{INK}">']
             for j, ln in enumerate(lines):
                 t.append(f'<tspan x="{cx:.2f}" dy="{0 if j == 0 else lh:.2f}">{html.escape(ln)}</tspan>')
@@ -457,13 +464,16 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
                            + (f'<tspan fill="{MUTED}" font-weight="400"> · {n}</tspan>' if is_start else "") + '</text>')
                 out.append(f'<line x1="{x0 + 1:.2f}" x2="{x1 - 1:.2f}" y1="{hy + 1.6 * f:.2f}" y2="{hy + 1.6 * f:.2f}" stroke="{RULE}" stroke-width="0.25"/>')
             out.append(f'<line x1="{x0 + 1:.2f}" x2="{x1 - 1:.2f}" y1="{base:.2f}" y2="{base:.2f}" stroke="{INK}" stroke-width="0.3"/>')
-        y = base + label_h + 6 * f + spare / 2
+        y = base + labels + 6 * f + spare / 2
 
     fy = H - M + 2 * f
     out.append(f'<line x1="{M}" x2="{W - M}" y1="{fy - 6 * f:.2f}" y2="{fy - 6 * f:.2f}" stroke="{RULE}" stroke-width="0.3"/>')
     note = (L["note1"] if abs(k - 1) < 1e-6 else L["noteK"]).format(size=size.split("-")[0], d=ratio) + L["note2"]
-    out.append(f'<text x="{M}" y="{fy:.2f}" font-size="{2.4 * f:.2f}" fill="{MUTED}">{html.escape(note)}</text>')
-    out.append(f'<text x="{W - M}" y="{fy:.2f}" font-size="{2.4 * f:.2f}" fill="{MUTED}" text-anchor="end">{html.escape(L["lic"])}</text>')
+    out.append(f'<text x="{M}" y="{fy:.2f}" font-size="{fs_note:.2f}" fill="{MUTED}">{html.escape(note)}</text>')
+    if (len(note) + len(L["lic"]) + 4) * fs_note * 0.5 > content_w:  # no room side by side (Letter): the licence goes below
+        out.append(f'<text x="{M}" y="{fy + 1.35 * fs_note:.2f}" font-size="{fs_note:.2f}" fill="{MUTED}">{html.escape(L["lic"])}</text>')
+    else:
+        out.append(f'<text x="{W - M}" y="{fy:.2f}" font-size="{fs_note:.2f}" fill="{MUTED}" text-anchor="end">{html.escape(L["lic"])}</text>')
 
     over = y - (H - M - 10 * f)
     svg = (f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}mm" height="{H}mm" viewBox="0 0 {W} {H}" '

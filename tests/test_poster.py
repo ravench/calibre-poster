@@ -172,7 +172,70 @@ class LayoutTests(unittest.TestCase):
             self.assertAlmostEqual(x2 - x1, 100, places=6, msg=size)
             unit = re.search(r'<text x="([\d.]+)" y="[\d.]+" text-anchor="end">mm</text>', svg)
             self.assertEqual(float(unit.group(1)), w - margin, size)
-            self.assertGreater(w - margin - x2, 6 * (0.58 if w < 400 else 1), "room for «100», a gap and «mm»")
+            figures = float(re.search(r'<g font-size="([\d.]+)" fill="[^"]+" text-anchor="middle">', svg).group(1))
+            self.assertGreater(w - margin - x2, 3 * figures, "room for half of «100», a gap and «mm» at the size they are set in")
+
+    def test_scale_bar_stays_clear_of_the_title_on_every_published_poster(self):
+        for lang, _, _, stem in build.VERSIONS:
+            with open(os.path.join(ROOT, lang, stem + ".svg"), encoding="utf-8") as f:
+                svg = f.read()
+            x, y, size, title = re.search(r'<text x="([\d.]+)" y="([\d.]+)" font-size="([\d.]+)" font-weight="800"[^>]*>([^<]+)<', svg).groups()
+            bar_x, bar_y = re.search(r'<line x1="([\d.]+)" x2="[\d.]+" y1="([\d.]+)" y2="[\d.]+" stroke="#1d1b18" stroke-width="0.35"/>', svg).groups()
+            title_end = float(x) + len(title) * float(size) * 0.56  # generous: the heavy title runs about 0.52 em a letter
+            self.assertTrue(float(bar_y) > float(y) or float(bar_x) > title_end, f"{lang}/{stem}: beside the title or on a line below it")
+
+
+class TypeTests(unittest.TestCase):
+    NAMES = LayoutTests.NAMES
+
+    def test_no_line_is_set_smaller_than_five_points_and_no_name_smaller_than_six(self):
+        builds = [poster.build(size, 1.0, "en", names=self.NAMES)[0] for size in ("A0", "A2", "A3", "Letter")]
+        for svg in builds + [poster.build("A3-quer", 1.0, "de", swiss=True)[0]]:
+            sizes = [float(x) for x in re.findall(r'font-size="([\d.]+)"', svg)]
+            self.assertGreaterEqual(min(sizes), 1.77, "5 pt is 1.764 mm")
+            names = [float(x) for x in re.findall(r'font-size="([\d.]+)" font-weight="600"', svg)]
+            self.assertGreaterEqual(min(names), 2.12, "6 pt is 2.117 mm")
+        self.assertIn('font-size="2.55" font-weight="600"', builds[0], "the big sheets keep their A1-sized type")
+        self.assertIn('font-size="2.12" font-weight="600"', builds[2], "6 pt on A3")
+
+    def test_a_row_ends_under_its_longest_label(self):
+        """No row keeps room for label lines it does not have: the space between its lowest
+        dimension line and the next header is the same all down the sheet."""
+        svg = poster.build("A2", 1.0, "de", names=set(poster.most_that_fit("A2")))[0]
+        heads = sorted({float(y) for y in re.findall(r'<text x="[\d.]+" y="([\d.]+)" font-size="[\d.]+" font-weight="700"', svg)})
+        dims = [float(y) for y in re.findall(r'<text x="[\d.]+" y="([\d.]+)"[^>]*>Ø ', svg)]
+        gaps = [below - max(y for y in dims if above < y < below) for above, below in zip(heads, heads[1:])]
+        self.assertGreater(len(gaps), 2)
+        self.assertGreater(min(gaps), 8, "and that space keeps the header clear of the labels above it")
+        for gap in gaps:
+            self.assertAlmostEqual(gap, gaps[0], places=1)
+
+    def test_names_keep_the_room_of_their_own_size_on_every_published_poster(self):
+        """Where the type stops shrinking with the sheet, the columns stop too: two names side by
+        side stay at least eight times their size apart."""
+        for lang, _, _, stem in build.VERSIONS:
+            with open(os.path.join(ROOT, lang, stem + ".svg"), encoding="utf-8") as f:
+                svg = f.read()
+            rows = {}
+            for x, y, size in re.findall(r'<text x="([\d.]+)" y="([\d.]+)" text-anchor="middle" font-size="([\d.]+)" font-weight="600"', svg):
+                rows.setdefault(y, []).append(float(x))
+            steps = [b - a for xs in rows.values() for a, b in zip(sorted(xs), sorted(xs)[1:])]
+            self.assertGreater(len(steps), 10, stem)
+            self.assertGreaterEqual(min(steps), 8 * float(size), f"{lang}/{stem}")
+
+    def test_the_licence_goes_below_the_note_where_both_do_not_fit_on_one_line(self):
+        def footer(size):
+            svg = poster.build(size, 1.0, "en", names=self.NAMES)[0]
+            note = re.search(r'<text x="([\d.]+)" y="([\d.]+)" font-size="[\d.]+" fill="#6f675c">Print without', svg)
+            licence = re.search(r'<text x="([\d.]+)" y="([\d.]+)" font-size="[\d.]+" fill="#6f675c"( text-anchor="end")?>©', svg)
+            return [float(v) for v in note.groups()], [float(v) for v in licence.groups()[:2]], licence.group(3)
+        (note_x, note_y), (x, y), end = footer("Letter")
+        self.assertEqual((x, end), (note_x, None), "flush left, under the note")
+        self.assertGreater(y - note_y, poster.MIN_TEXT)
+        self.assertLess(y, poster.SIZES["Letter"][1] - 10, "and still 10 mm inside the sheet")
+        (note_x, note_y), (x, y), end = footer("11x17in")
+        self.assertEqual((y, x), (note_y, poster.SIZES["11x17in"][0] - 14), "side by side where there is room")
+        self.assertTrue(end)
 
 
 class OrderTests(unittest.TestCase):
