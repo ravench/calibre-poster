@@ -27,38 +27,44 @@ SUB_GAP = 12  # title baseline to subtitle baseline, in typography units (mm at 
 TEXT = {
     "de": dict(
         cats={"Luftdruck": "Luftdruck", "Randfeuer": "Randfeuer", "Kurzwaffe": "Kurzwaffen", "Langwaffe": "Langwaffen",
-              "SP_Geschoss": "Schwarzpulver · Kugeln & Minié", "SP_Patrone": "Schwarzpulver · Patronen", "Flinte": "Flinte"},
+              "SP_Geschoss": "Schwarzpulver · Kugeln & Minié", "SP_Patrone": "Schwarzpulver · Patronen", "Flinte": "Flinten"},
         cont=" (Forts.)", title="Kaliber im Vergleich",
-        sub="{n} Patronen und Geschosse · {scale}",
+        sub="{n} Patronen · {scale}", sub_loose="{n} Patronen und Geschosse · {scale}",
         actual="Originalgrösse (Massstab 1:1)", scaled="Massstab 1:{d}",
         note1="Druck ohne Skalierung (100 %) auf {size}: Patronen in Originalgrösse. ",
         noteK="Druck ohne Skalierung (100 %) auf {size}: Massstab 1:{d}. ",
-        note2="Masse gerundet nach CIP/SAAMI, Geschossform schematisch. Keine Ladedaten.",
+        note2="Abmessungen gerundet nach CIP/SAAMI, Geschossform schematisch. Keine Ladedaten.",
         lic="© 2026 Simon Giotta · Lizenz CC BY-NC 4.0 · creativecommons.org/licenses/by-nc/4.0",
-        same="gleiche Masse",
+        same="gleiche Abmessungen",  # not «Masse»: with the Swiss ss that also reads as «mass»
         swiss_title="Ordonnanzpatronen der Schweizer Armee", swiss_sub="{n} Patronen von 1867 bis heute · {scale}", swiss_cat="Seit 1867",
         names={}),
     "en": dict(
         cats={"Luftdruck": "Airgun", "Randfeuer": "Rimfire", "Kurzwaffe": "Handgun", "Langwaffe": "Rifle",
               "SP_Geschoss": "Black powder · balls & Minié", "SP_Patrone": "Black powder · cartridges", "Flinte": "Shotgun"},
         cont=" (cont.)", title="Calibre Comparison",
-        sub="{n} cartridges and projectiles · {scale}",
+        sub="{n} cartridges · {scale}", sub_loose="{n} cartridges and projectiles · {scale}",
         actual="Actual size (scale 1:1)", scaled="Scale 1:{d}",
         note1="Print without scaling (100 %) on {size}: cartridges at actual size. ",
         noteK="Print without scaling (100 %) on {size}: scale 1:{d}. ",
         note2="Dimensions rounded per CIP/SAAMI, bullet shapes schematic. Not load data.",
         lic="© 2026 Simon Giotta · Licence CC BY-NC 4.0 · creativecommons.org/licenses/by-nc/4.0",
         same="identical dimensions",
-        names={"Rundkugel": "Round Ball", "Browning kurz": "Browning Short", "11,43 mm": "11.43 mm",
-               "12,7x99": "12.7x99", "Randfeuer": "rimfire", "Zentralfeuer": "centrefire",
+        names={"Rundkugel": "Round Ball", "Browning kurz": "Browning Short", "Randfeuer": "rimfire", "Zentralfeuer": "centrefire",
                "Milbank-Amsler-Gewehr": "Milbank-Amsler rifle", "Gewehr 1889": "Rifle 1889", "Kadettengewehr 1897": "Cadet rifle 1897", "Pistole": "Pistol",
                "Mehrzweckgewehr": "Multi-purpose gun"},
         swiss_title="Swiss Army Service Cartridges", swiss_sub="{n} cartridges from 1867 to today · {scale}", swiss_cat="Since 1867"),
 }
 
 
+# Every number on the posters has a decimal point, in German too (Swiss usage: 7.5, not 7,5). Two display
+# aliases of the calibre data still carry a comma.
+POINTS = {"11,43 mm": "11.43 mm", "12,7x99": "12.7x99"}
+# Aliases the calibre data keeps for German readers only; the English posters leave them out.
+GERMAN_ONLY = re.compile(r"\bKK\b|Knall|Setzkartusche")
+
+
 def tr(text):
-    for a, b in TEXT[LANG]["names"].items():
+    for a, b in {**POINTS, **TEXT[LANG]["names"]}.items():
         text = text.replace(a, b)
     return text
 
@@ -69,9 +75,8 @@ FONT = "Inter, 'Helvetica Neue', Arial, sans-serif"
 
 
 def fmt(x):
-    d = "," if LANG == "de" else "."
-    s = f"{x:.1f}"
-    return s[:-2] if s.endswith(".0") else s.replace(".", d)
+    """A measurement as printed: always one decimal («Ø 9.0 · 25.0 mm» beside «Ø 9.1 · 25.5 mm»)."""
+    return f"{x:.1f}"
 
 
 from cartridges import DISPLAY_ALIASES  # single source, shared with the app
@@ -85,21 +90,21 @@ MERGED = set()  # names to leave out of the poster
 # sigforum Pist Pat 41 box; GP 11, GP 90, Patrone Modell 1890 and Kadettenpatrone as in the calibre data); otherwise the usual name.
 SWISS_SERVICE = [  # (catalogue name, Swiss name, international name, year adopted, weapons); Swiss name only where sourced
     ("18 mm Milbank-Amsler", "18 mm Milbank-Amsler", "", 1867, "Milbank-Amsler-Gewehr"),
-    ("10.4x38 mm R Vetterli", "10,4x38 R Vetterli", "", 1867, "Peabody 1867, Vetterli 1869"),
-    ("10.4 mm Swiss Ordnance 1872 Rimfire", "10,4 mm Randfeuer", "", 1872, "Revolver 1872"),
-    ("10.4 mm Swiss Ordnance 1878", "10,4 mm Zentralfeuer", "", 1878, "Revolver 1872/78"),
-    ("7.5 mm Swiss Ordnance 1882", "7,5x23 R", "", 1882, "Revolver 1882"),
-    ("7.5x53.5 mm Swiss (Patrone Modell 1890)", "Patrone Modell 1890", "7,5x53,5", 1890, "Gewehr 1889"),
-    ("7.5 mm Kadettenpatrone", "Kadettenpatrone", "7,5x54,6", 1897, "Kadettengewehr 1897"),
-    ("7.65 mm Parabellum", "Pist Pat 03", "7,65 mm Parabellum", 1900, "Pistole 1900, 1906, 06/29"),
-    ("7.5x55 mm Swiss (GP 11)", "GP 11", "7,5x55", 1911, "K11, K31, Lmg 25, Mg 51, Stgw 57"),
+    ("10.4x38 mm R Vetterli", "10.4x38 R Vetterli", "", 1867, "Peabody 1867, Vetterli 1869"),
+    ("10.4 mm Swiss Ordnance 1872 Rimfire", "10.4 mm Randfeuer", "", 1872, "Revolver 1872"),
+    ("10.4 mm Swiss Ordnance 1878", "10.4 mm Zentralfeuer", "", 1878, "Revolver 1872/78"),
+    ("7.5 mm Swiss Ordnance 1882", "7.5x23 R", "", 1882, "Revolver 1882"),
+    ("7.5x53.5 mm Swiss (Patrone Modell 1890)", "Patrone Modell 1890", "7.5x53.5", 1890, "Gewehr 1889"),
+    ("7.5 mm Kadettenpatrone", "Kadettenpatrone", "7.5x54.6", 1897, "Kadettengewehr 1897"),
+    ("7.65 mm Parabellum", "Pist Pat 03", "7.65 mm Parabellum", 1900, "Pistole 1900, 1906, 06/29"),
+    ("7.5x55 mm Swiss (GP 11)", "GP 11", "7.5x55", 1911, "K11, K31, Lmg 25, Mg 51, Stgw 57"),
     ("9x19 mm", "Pist Pat 41", "9 mm Parabellum", 1941, "Pistole 49, Pistole 75, Mp 14"),
     ("12/70", "12/70", "", "", "Mehrzweckgewehr"),
-    (".50 BMG", ".50 BMG", "12,7x99 NATO", "", "Mg 64, PSG 04"),
-    ("5.6 mm GP 90", "GP 90", "5,56x45 NATO", 1990, "Stgw 90, Lmg 05"),
-    (".338 Lapua Magnum", ".338 Lapua Magnum", "8,6x70", 2004, "SSGw 04, SSGw 18"),
-    ("7.62x51 mm NATO", "7,62x51 NATO", "", 2012, "Zf Stgw 12"),
-    ("6.5 mm Creedmoor", "6,5 mm Creedmoor", "", 2020, "Zf Stgw 20")]
+    (".50 BMG", ".50 BMG", "12.7x99 NATO", "", "Mg 64, PSG 04"),
+    ("5.6 mm GP 90", "GP 90", "5.56x45 NATO", 1990, "Stgw 90, Lmg 05"),
+    (".338 Lapua Magnum", ".338 Lapua Magnum", "8.6x70", 2004, "SSGw 04, SSGw 18"),
+    ("7.62x51 mm NATO", "7.62x51 NATO", "", 2012, "Zf Stgw 12"),
+    ("6.5 mm Creedmoor", "6.5 mm Creedmoor", "", 2020, "Zf Stgw 20")]
 
 SHARE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "listing-share.json")
 
@@ -162,7 +167,7 @@ def wrap(words, limit, sep=" "):
 
 
 def split_name(name):
-    """Main name lines + alias lines (parenthetical part or DISPLAY_ALIASES)."""
+    """Main name lines + alias lines (the name's parenthetical part, then its DISPLAY_ALIASES)."""
     main, aliases = name, []
     if " (" in name:
         main, paren = name.split(" (", 1)
@@ -170,7 +175,10 @@ def split_name(name):
     if name in DISPLAY_ALIASES:
         if main.startswith("7.5x55"):
             main = "7.5x55 mm"
-        aliases = DISPLAY_ALIASES[name]
+        shown = [a for a in DISPLAY_ALIASES[name] if LANG == "de" or not GERMAN_ONLY.search(a)]
+        # The name's own bracket leads unless an alias says it again: «Patrone Modell 1890» stays in front of
+        # «GP 1890», «(.32 ACP)» is not printed twice.
+        aliases = [a for a in aliases if not any(a in s for s in shown)] + shown
     return wrap(tr(main).split(" "), 13), wrap([tr(a) for a in aliases], 19, " · ")
 
 
@@ -357,8 +365,10 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
     out = []
     title_y = M + 22 * f
     T1 = title or (L["swiss_title"] if swiss else L["title"])
+    loose = any("case" not in it["outline"] for it in items)  # balls, Minié bullets, pellets
+    sub = L["swiss_sub"] if swiss else L["sub_loose"] if loose else L["sub"]
     out.append(f'<text x="{M}" y="{title_y:.2f}" font-size="{19 * f:.2f}" font-weight="800" letter-spacing="-0.4" fill="{INK}">{html.escape(T1)}</text>')
-    out.append(f'<text x="{M}" y="{title_y + SUB_GAP * f:.2f}" font-size="{5 * f:.2f}" fill="{MUTED}">{html.escape((L["swiss_sub"] if swiss else L["sub"]).format(n=sum(len(it["names"]) for it in items), scale=L["actual"] if abs(k - 1) < 1e-6 else L["scaled"].format(d=fmt(1 / k))))}</text>')
+    out.append(f'<text x="{M}" y="{title_y + SUB_GAP * f:.2f}" font-size="{5 * f:.2f}" fill="{MUTED}">{html.escape(sub.format(n=sum(len(it["names"]) for it in items), scale=L["actual"] if abs(k - 1) < 1e-6 else L["scaled"].format(d=f"{1 / k:g}")))}</text>')
     # scale bar 0-100 mm (true size on print)
     bx, by = W - M - 100 * k, title_y - 3 * f
     if M + len(T1) * 19 * f * 0.56 > bx - 6 * f:  # long title: scale bar moves down beside the subtitle
@@ -402,7 +412,7 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
             if swiss:
                 _, disp, intl, yr, wp = SW[it["name"]]
                 if LANG == "en":
-                    disp, intl, wp = (tr(re.sub(r"(\d),(\d)", r"\1.\2", t)) for t in (disp, intl, wp))
+                    disp, intl, wp = (tr(t) for t in (disp, intl, wp))
                 lines = wrap(disp.split(" "), 13)
                 extra = (wrap(intl.split(" "), 19) if intl else []) + ([str(yr)] if yr else []) + wrap(wp.split(" "), 19)
             ty = base + 4.3 * f
@@ -432,7 +442,7 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
 
     fy = H - M + 2 * f
     out.append(f'<line x1="{M}" x2="{W - M}" y1="{fy - 6 * f:.2f}" y2="{fy - 6 * f:.2f}" stroke="{RULE}" stroke-width="0.3"/>')
-    note = (L["note1"] if abs(k - 1) < 1e-6 else L["noteK"]).format(size=size.split("-")[0], d=fmt(1 / k)) + L["note2"]
+    note = (L["note1"] if abs(k - 1) < 1e-6 else L["noteK"]).format(size=size.split("-")[0], d=f"{1 / k:g}") + L["note2"]
     out.append(f'<text x="{M}" y="{fy:.2f}" font-size="{2.4 * f:.2f}" fill="{MUTED}">{html.escape(note)}</text>')
     out.append(f'<text x="{W - M}" y="{fy:.2f}" font-size="{2.4 * f:.2f}" fill="{MUTED}" text-anchor="end">{html.escape(L["lic"])}</text>')
 

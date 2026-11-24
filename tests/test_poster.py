@@ -40,9 +40,65 @@ class MergeIdenticalTests(unittest.TestCase):
         poster.LANG = "de"
         lines, extra = poster.label_lines(["7.62x51 mm NATO", ".308 Winchester"])
         self.assertEqual(lines, ["7.62x51 mm NATO", ".308 Winchester"])
-        self.assertEqual(extra, ["gleiche Masse"])
+        self.assertEqual(extra, ["gleiche Abmessungen"])
         lines, _ = poster.label_lines(["7.5x55 mm Swiss (GP 11)", "9x19 mm"])
         self.assertEqual(lines[0], "7.5x55 mm Swiss", "parenthetical part is dropped in a combined label")
+
+
+def texts(svg):
+    """Every piece of text an SVG prints (a failed check then lists these, not the whole file)."""
+    return re.findall(r">([^<>]+)<", svg)
+
+
+class LabelTests(unittest.TestCase):
+    def tearDown(self):
+        poster.LANG = "de"
+
+    def test_decimal_point_and_one_decimal_in_every_language(self):
+        # Swiss German writes 7.5 like English; a whole number keeps its «.0» so the lines read evenly.
+        for lang in ("de", "en"):
+            printed = texts(poster.build("A3", 1.0, lang, names={"9x19 mm", ".45 ACP", ".50 BMG"})[0])
+            for text in ("Ø 9.0 · 29.7 mm", ".45 Auto · 11.43 mm", "12.7x99 mm NATO"):
+                self.assertIn(text, printed)
+        self.assertEqual(poster.fmt(25), "25.0")
+        half = texts(poster.build("A3", 0.5, "de", names={"9x19 mm"})[0])
+        self.assertIn("1 Patronen · Massstab 1:2", half)  # the scale has no «.0»
+
+    def test_no_published_poster_prints_a_decimal_comma(self):
+        for lang, size, edition, stem in build.VERSIONS:
+            printed = texts(build.version(lang, size, edition)[0])
+            self.assertEqual([t for t in printed if re.search(r"\d,\d", t)], [], stem)
+
+    def test_the_name_in_brackets_leads_the_aliases(self):
+        poster.LANG = "de"
+        self.assertEqual(poster.split_name("7.5x53.5 mm Swiss (Patrone Modell 1890)"),
+                         (["7.5x53.5 mm", "Swiss"], ["Patrone Modell 1890", "GP 1890 · GP 90/03"]))
+        # no doubles where an alias repeats the bracket
+        self.assertEqual(poster.split_name("7.65 mm Browning (.32 ACP)")[1], [".32 ACP · .32 Auto"])
+        self.assertEqual(poster.split_name("7.5x55 mm Swiss (GP 11)"), (["7.5x55 mm"], ["GP 11", "7.5 mm Swiss"]))
+        self.assertEqual(poster.split_name("6.35 mm Browning (.25 ACP)")[1], [".25 ACP"])
+
+    def test_english_leaves_out_the_german_aliases(self):
+        poster.LANG = "de"
+        self.assertEqual(poster.split_name(".22 LR")[1], [".22 Long Rifle · KK"])
+        self.assertEqual(poster.split_name("9 mm PA Blanc")[1], ["9 mm P.A.K.", "9 mm P.A. Knall"])
+        poster.LANG = "en"
+        self.assertEqual(poster.split_name(".22 LR")[1], [".22 Long Rifle"])
+        self.assertEqual(poster.split_name("9 mm PA Blanc")[1], ["9 mm P.A.K."])
+        self.assertEqual(poster.split_name(".22 SH (5.6/11)")[1], ["5.6/11 · .22 Blank"])  # the size stays
+
+    def test_subtitle_names_projectiles_only_where_some_are_drawn(self):
+        ball = ".36 Rundkugel (.375)"
+        sub = lambda lang, names: texts(poster.build("A3", 1.0, lang, names=names)[0])[1].split(" · ")[0]
+        self.assertEqual(sub("de", {"9x19 mm", ball}), "2 Patronen und Geschosse")
+        self.assertEqual(sub("en", {"9x19 mm", ball}), "2 cartridges and projectiles")
+        self.assertEqual(sub("de", {"9x19 mm"}), "1 Patronen")
+        self.assertEqual(sub("en", {"9x19 mm", "12/70"}), "2 cartridges")
+
+    def test_german_section_headers_are_plural(self):
+        printed = texts(poster.build("A3", 1.0, "de", names={"9x19 mm", ".308 Winchester", "12/70"})[0])
+        for header in ("KURZWAFFEN", "LANGWAFFEN", "FLINTEN"):
+            self.assertIn(header, printed)
 
 
 class BuildTests(unittest.TestCase):
@@ -57,7 +113,7 @@ class BuildTests(unittest.TestCase):
         svg = poster.build("A2", 1.0, "de", names=names)[0]
         drawings = svg.count("<g transform=")
         self.assertEqual(drawings, len(poster.merge_identical([s for s in ALL if s["name"] in names])))
-        n = re.search(r"(\d+) Patronen und Geschosse", svg)
+        n = re.search(r">(\d+) Patronen · ", svg)
         self.assertEqual(int(n.group(1)), len(names), "the subtitle counts every cartridge, merged or not")
 
     def test_english_labels(self):
@@ -120,7 +176,7 @@ class SelectionTests(unittest.TestCase):
         self.assertNotIn(left_out, shown)
         self.assertNotIn(left_out, poster.ranked())
         svg = poster.build("A3", 1.0, "en", names={"9x19 mm", left_out})[0]  # also when asked for by name
-        self.assertIn("1 cartridges and projectiles", svg)
+        self.assertIn("1 cartridges · Actual size (scale 1:1)", texts(svg))
         for size in ("A3", "A0"):
             self.assertLessEqual(set(poster.most_that_fit(size)), shown)
 
@@ -202,8 +258,9 @@ class SwissServiceTests(unittest.TestCase):
         self.assertNotIn("GP 1890", de)  # a later collectors' name
         self.assertIn("Ordonnanzpatronen der Schweizer Armee", de)
         self.assertIn("Swiss Army Service Cartridges", en)
-        self.assertIn("10.4 mm", en)
-        self.assertNotIn("10,4 mm", en)
+        for svg in (de, en):
+            self.assertIn("10.4 mm", svg)
+            self.assertNotIn("10,4 mm", svg)
 
 
 class MaterialTests(unittest.TestCase):
