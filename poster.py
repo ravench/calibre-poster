@@ -89,12 +89,13 @@ MERGED = set()  # names to leave out of the poster
 # Swiss service edition: every small-arms cartridge the Swiss army adopted, oldest first.
 # The Swiss name is used only where a source gives it (Pist Pat 03/41: de.wikipedia «7,65 x 21 mm Luger»,
 # sigforum Pist Pat 41 box; GP 11, GP 90, Patrone Modell 1890 and Kadettenpatrone as in the calibre data); otherwise the usual name.
-# The year is the model year of the first weapon where no adoption date is known. .50 BMG: «12,7 mm Schweres
-# Maschinengewehr Modell 1964 (Mg 64) … gelangte auch erstmals das schwere Browning Maschinengewehr im Kaliber
-# 12,7 mm … in unserer Armee zur Einführung» (Verein Schweizer Armeemuseum, Bulletin 1/07,
-# armeemuseum.ch/wp-content/uploads/2015/05/Bulletin_Vsam_d_1-07.pdf). 12/70: «Flintenlaufpatrone zum
-# Mehrzweckgewehr 91 (Mzgw 91)», Kaliber 12/70 (swisswaffen.com/?L=DE&W=MZGW91FP).
-SWISS_SERVICE = [  # (catalogue name, Swiss name, international name, year adopted, weapons); Swiss name only where sourced
+# Where no adoption date is known (.50 BMG, 12/70), the year is the model year of the first weapon we know of.
+# .50 BMG: «12,7 mm Schweres Maschinengewehr Modell 1964 (Mg 64) … Mit dem US-Schützenpanzer M 113 gelangte auch
+# erstmals das schwere Browning Maschinengewehr im Kaliber 12,7 mm (.50 Zoll) in unserer Armee zur Einführung»
+# (Verein Schweizer Armeemuseum, Bulletin 1/07, armeemuseum.ch/wp-content/uploads/2015/05/Bulletin_Vsam_d_1-07.pdf).
+# 12/70: «Flintenlaufpatrone zum Mehrzweckgewehr 91 (Mzgw 91)», Kaliber 12/70 (swisswaffen.com/?L=DE&W=MZGW91FP);
+# the year is read from the weapon's designation alone.
+SWISS_SERVICE = [  # (catalogue name, Swiss name, international name, year adopted or model year, weapons)
     ("18 mm Milbank-Amsler", "18 mm Milbank-Amsler", "", 1867, "Milbank-Amsler-Gewehr"),
     ("10.4x38 mm R Vetterli", "10.4x38 R Vetterli", "", 1867, "Peabody 1867, Vetterli 1869"),
     ("10.4 mm Swiss Ordnance 1872 Rimfire", "10.4 mm Randfeuer", "", 1872, "Revolver 1872"),
@@ -285,7 +286,7 @@ def dims(c):
 
 
 def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
-    """names: set of calibre names to draw (None = all). swiss: [(name, year, weapons)] for the Swiss service edition."""
+    """names: set of calibre names to draw (None = all). swiss: rows like SWISS_SERVICE (True = that list) for the Swiss service edition."""
     global LANG
     LANG = lang
     L = TEXT[lang]

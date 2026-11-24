@@ -263,7 +263,8 @@ class SwissServiceTests(unittest.TestCase):
         self.assertLess(svg.index("Milbank-Amsler"), svg.index("Pist Pat 41"))
         self.assertLess(svg.index("Pist Pat 41"), svg.index("Zf Stgw 20"))
         years = [row[3] for row in poster.SWISS_SERVICE]
-        self.assertEqual(years, sorted(years), "every round has its year and stands in that order")
+        self.assertTrue(all(isinstance(year, int) for year in years), "every round has its year")
+        self.assertEqual(years, sorted(years), "and stands in that order")
         printed = texts(svg)
         for year in ("1964", "1991"):  # the .50 BMG (Mg 64) and the 12/70 (Mzgw 91)
             self.assertIn(year, printed)
@@ -272,16 +273,16 @@ class SwissServiceTests(unittest.TestCase):
 
     def test_weapons_break_between_weapons(self):
         de = texts(poster.build("A3-quer", 1.0, "de", swiss=True)[0])
-        at = de.index("Pist Pat 41")
-        self.assertEqual(de[at + 1:at + 5], ["9 mm Parabellum", "1941", "Pistole 49,", "Pistole 75, Mp 14"])
-        at = de.index("GP 11")
-        self.assertEqual(de[at + 1:at + 5], ["7.5x55", "1911", "K11, K31, Lmg 25,", "Mg 51, Stgw 57"])
+        for row in poster.SWISS_SERVICE:
+            for weapon in row[4].split(", "):  # never «Pistole» on one line and «75» on the next
+                self.assertTrue(any(weapon in t.rstrip(",").split(", ") for t in de), weapon)
 
     def test_no_section_header_repeats_the_subtitle(self):
         for lang in ("de", "en"):
-            printed = texts(poster.build("A3-quer", 1.0, lang, swiss=True)[0])
-            self.assertEqual([t for t in printed if "1867" in t and t.upper() == t and len(t) > 4], [], lang)
-            self.assertEqual(sum("1867 " in t for t in printed[:3]), 1, "the subtitle still says it")
+            svg = poster.build("A3-quer", 1.0, lang, swiss=True)[0]
+            self.assertNotIn('font-weight="700"', svg, "no header text and no count")
+            self.assertEqual(svg.count(f'stroke="{poster.RULE}"'), 1, "only the footer rule, no header rule")
+            self.assertEqual(sum("1867 " in t for t in texts(svg)[:3]), 1, "the subtitle still says it")
 
     def test_english_names_are_capitalised_alike(self):
         en = texts(poster.build("A3-quer", 1.0, "en", swiss=True)[0])
