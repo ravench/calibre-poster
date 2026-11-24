@@ -17,7 +17,10 @@ marketplaces, counted 2026-11-04).
 | A1, about 130 | [PDF](de/kaliber-poster-A1.pdf) · [SVG](de/kaliber-poster-A1.svg) | [PDF](en/calibre-poster-A1.pdf) · [SVG](en/calibre-poster-A1.svg) |
 | A2, about 75 | [PDF](de/kaliber-poster-A2.pdf) · [SVG](de/kaliber-poster-A2.svg) | [PDF](en/calibre-poster-A2.pdf) · [SVG](en/calibre-poster-A2.svg) |
 | A3, about 50 | [PDF](de/kaliber-poster-A3.pdf) · [SVG](de/kaliber-poster-A3.svg) | [PDF](en/calibre-poster-A3.pdf) · [SVG](en/calibre-poster-A3.svg) |
-| US sizes: 24 × 36 in, 18 × 24 in, 11 × 17 in, Letter (about 155, 95, 55, 22) | | [24x36in](en/calibre-poster-24x36in.pdf) · [18x24in](en/calibre-poster-18x24in.pdf) · [11x17in](en/calibre-poster-11x17in.pdf) · [Letter](en/calibre-poster-Letter.pdf) |
+| 24 × 36 in, about 155 | – | [PDF](en/calibre-poster-24x36in.pdf) · [SVG](en/calibre-poster-24x36in.svg) |
+| 18 × 24 in, about 95 | – | [PDF](en/calibre-poster-18x24in.pdf) · [SVG](en/calibre-poster-18x24in.svg) |
+| 11 × 17 in, about 55 | – | [PDF](en/calibre-poster-11x17in.pdf) · [SVG](en/calibre-poster-11x17in.svg) |
+| Letter, about 22 | – | [PDF](en/calibre-poster-Letter.pdf) · [SVG](en/calibre-poster-Letter.svg) |
 | Swiss service cartridges since 1867, A3 landscape | [PDF](de/schweizer-armee-A3.pdf) · [SVG](de/schweizer-armee-A3.svg) | [PDF](en/swiss-army-A3.pdf) · [SVG](en/swiss-army-A3.svg) |
 
 Print without scaling (100 %); the scale bar at the top lets you check. Cartridges with identical
