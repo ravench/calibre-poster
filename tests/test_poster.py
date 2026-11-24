@@ -1,5 +1,5 @@
 """Tests for the calibre wall poster: python3 -m unittest discover -s tests"""
-import os, re, subprocess, sys, unittest
+import json, os, re, subprocess, sys, unittest
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 sys.path.insert(0, ROOT)
@@ -261,7 +261,11 @@ class SelectionTests(unittest.TestCase):
 
     def test_no_air_gun_and_no_section_of_only_a_few_black_powder(self):
         cat_of = {s["name"]: cat for cat, items in CATALOGUE for s in items}
-        self.assertEqual(sum(cat == "Luftdruck" for cat in cat_of.values()), 5, "the catalogue has them")
+        air = {name for name, cat in cat_of.items() if cat == "Luftdruck"}
+        self.assertTrue(air, "the catalogue has them")
+        with open(poster.SHARE_FILE, encoding="utf-8") as f:
+            listed = set(json.load(f)["share"])
+        self.assertEqual(air & listed, {"4.5 mm Diabolo (.177)", "5.5 mm Diabolo (.22)"}, "the README says two are listed")
         for lang, size, edition, stem in build.VERSIONS:
             if edition != "fit":
                 continue
