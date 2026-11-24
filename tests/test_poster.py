@@ -159,6 +159,15 @@ class LayoutTests(unittest.TestCase):
             self.assertEqual(len(rules), 1, "one row, its three headers on one line")
             self.assertAlmostEqual(min(tops) - rules.pop(), poster.TIP_GAP, places=1, msg=size)
 
+    def test_a_group_far_shorter_than_its_row_gets_its_header_just_above_itself(self):
+        svg = poster.build("A2", 1.0, "de", names={".308 Winchester", ".50 BMG", "12/70"})[0]  # the shell beside the .50 BMG
+        tops = [float(y) for y in re.findall(r'<g transform="translate\([-\d.]+ ([-\d.]+)\)', svg)]
+        rules = sorted({float(y) for y in re.findall(r'y1="([\d.]+)" y2="[\d.]+" stroke="#cfc5b3" stroke-width="0.25"', svg)})
+        self.assertEqual(len(rules), 2, "rifles on the row's line, shotgun on its own")
+        self.assertAlmostEqual(min(tops) - rules[0], poster.TIP_GAP, places=1)
+        self.assertAlmostEqual(tops[-1] - rules[1], poster.TIP_GAP, places=1)
+        self.assertGreater(rules[1] - rules[0], poster.HEADER_DROP)
+
     def test_header_and_title_spacing_scale_with_the_type(self):
         spacing = lambda size: sorted(set(re.findall(r'letter-spacing="([-\d.]+)"', poster.build(size, 1.0, "de", names=self.NAMES)[0])))
         self.assertEqual(spacing("A0"), ["-0.40", "0.50"])
@@ -185,6 +194,44 @@ class LayoutTests(unittest.TestCase):
             self.assertTrue(float(bar_y) > float(y) or float(bar_x) > title_end, f"{lang}/{stem}: beside the title or on a line below it")
 
 
+class RowBreakTests(unittest.TestCase):
+    """A section cut by a row break keeps at least two cartridges on either side."""
+    row = staticmethod(lambda cats: [{"cat": c} for c in cats])
+
+    def held_back(self, cur, rest):
+        return poster.held_back(self.row(cur), self.row(rest))
+
+    def test_a_section_does_not_start_with_one_cartridge_at_the_end_of_a_row(self):
+        self.assertEqual(self.held_back("PPPPS", "SSS"), 1, "the lone shell joins the others on the next row")
+        self.assertEqual(self.held_back("PPPSS", "SSS"), 0, "two may start a section")
+
+    def test_a_section_does_not_end_with_one_cartridge_on_the_next_row(self):
+        self.assertEqual(self.held_back("RPPPP", "PS"), 1, "one goes down to keep the last one company")
+        self.assertEqual(self.held_back("PPPPP", "PS"), 1, "also where the section fills the whole row")
+        self.assertEqual(self.held_back("RPPPP", "PPS"), 0)
+        self.assertEqual(self.held_back("RRRPP", "PS"), 2, "three in all: they stay together on the next row")
+        self.assertEqual(self.held_back("RRRRP", "PS"), 1, "and so do two")
+
+    def test_whole_sections_and_single_cartridges_stay_where_they_are(self):
+        self.assertEqual(self.held_back("RRRRP", "SSS"), 0, "a section of one, complete")
+        self.assertEqual(self.held_back("RRRRR", "SSS"), 0)
+        self.assertEqual(self.held_back("P", "PS"), 0, "never empties a row")
+
+    def test_no_published_poster_cuts_off_a_single_cartridge(self):
+        drawn, draw = [], poster.cartridge_svg
+        poster.cartridge_svg = lambda c, o, x, base, k: (drawn.append((c["cat"], base)), draw(c, o, x, base, k))[1]
+        try:
+            for lang, size, edition, stem in build.VERSIONS:
+                del drawn[:]
+                build.version(lang, size, edition)
+                rows = [[cat for cat, base in drawn if base == b] for b in sorted({base for _, base in drawn})]
+                for row, below in zip(rows, rows[1:]):
+                    if row[-1] == below[0]:
+                        self.assertGreaterEqual(min(row.count(row[-1]), below.count(below[0])), 2, f"{lang}/{stem}: {row[-1]}")
+        finally:
+            poster.cartridge_svg = draw
+
+
 class TypeTests(unittest.TestCase):
     NAMES = LayoutTests.NAMES
 
@@ -204,7 +251,8 @@ class TypeTests(unittest.TestCase):
         svg = poster.build("A2", 1.0, "de", names=set(poster.most_that_fit("A2")))[0]
         heads = sorted({float(y) for y in re.findall(r'<text x="[\d.]+" y="([\d.]+)" font-size="[\d.]+" font-weight="700"', svg)})
         dims = [float(y) for y in re.findall(r'<text x="[\d.]+" y="([\d.]+)"[^>]*>Ø ', svg)]
-        gaps = [below - max(y for y in dims if above < y < below) for above, below in zip(heads, heads[1:])]
+        rows = [(above, below) for above, below in zip(heads, heads[1:]) if any(above < y < below for y in dims)]
+        gaps = [below - max(y for y in dims if above < y < below) for above, below in rows]  # a row's own lower header aside
         self.assertGreater(len(gaps), 2)
         self.assertGreater(min(gaps), 8, "and that space keeps the header clear of the labels above it")
         for gap in gaps:
