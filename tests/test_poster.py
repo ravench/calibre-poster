@@ -143,12 +143,29 @@ class SelectionTests(unittest.TestCase):
         self.assertEqual(counts, sorted(counts))
         self.assertLess(counts[-1], len(ALL), "not even A0 holds the whole catalogue at 1:1")
 
-    def test_selection_fits_and_one_more_does_not(self):
-        ranked = poster.ranked()
+    def test_selection_fits_and_the_next_one_does_not(self):
+        cat_of = {s["name"]: cat for cat, items in CATALOGUE for s in items}
         for size in ("A3", "A1"):
-            n = len(poster.most_that_fit(size))
-            self.assertLessEqual(poster.build(size, 1.0, "de", names=set(ranked[:n]))[2], 0)
-            self.assertGreater(poster.build(size, 1.0, "de", names=set(ranked[:n + 1]))[2], 0)
+            names = poster.most_that_fit(size)
+            shown_cats = {cat_of[n] for n in names}
+            pool = [n for n in poster.ranked() if cat_of[n] in shown_cats]
+            self.assertEqual(names, pool[:len(names)], "a prefix of the ranking, less the left-out sections")
+            self.assertLessEqual(poster.build(size, 1.0, "de", names=set(names))[2], 0)
+            self.assertGreater(poster.build(size, 1.0, "de", names=set(pool[:len(names) + 1]))[2], 0)
+
+    def test_no_section_of_only_a_few_airgun_or_black_powder(self):
+        cat_of = {s["name"]: cat for cat, items in CATALOGUE for s in items}
+        for lang, size, edition, stem in build.VERSIONS:
+            if edition != "fit":
+                continue
+            names = poster.most_that_fit(size, lang)
+            for cat in poster.SMALL_SECTIONS:
+                with self.subTest(stem=stem, cat=cat):
+                    n = sum(cat_of[x] == cat for x in names)
+                    self.assertTrue(n == 0 or n >= poster.MIN_SECTION, n)
+        a1 = poster.most_that_fit("A1")
+        self.assertGreaterEqual(sum(cat_of[x] == "Schwarzpulver" for x in a1), poster.MIN_SECTION)  # big sheets keep it
+        self.assertFalse(any(cat_of[x] == "Schwarzpulver" for x in poster.most_that_fit("A3")))
 
     def test_every_listed_share_is_a_catalogue_calibre(self):
         import json

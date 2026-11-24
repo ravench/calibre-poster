@@ -113,9 +113,27 @@ def ranked():
     return sorted(names, key=lambda n: (-share.get(n, 0), n in OBSOLETE, n))
 
 
+# Sections left out where the page would show fewer than MIN_SECTION of them: a handful of
+# air-gun pellets or black-powder rounds makes a section that looks like an afterthought.
+SMALL_SECTIONS = ("Luftdruck", "Schwarzpulver")
+MIN_SECTION = 5
+LOOK_AHEAD = 50
+
+
 def most_that_fit(size, lang="de", pool=None):
-    """The longest prefix of the ranking that fits on the page at 1:1."""
-    pool = pool or ranked()
+    """The longest prefix of the ranking that fits on the page at 1:1, without SMALL_SECTIONS
+    that would show fewer than MIN_SECTION calibres (the space goes to the next in the ranking)."""
+    pool = list(pool or ranked())
+    cat_of = {s["name"]: cat for cat, v in CATALOGUE for s in v}
+    while True:
+        names = _prefix_that_fits(size, lang, pool)
+        few = [c for c in SMALL_SECTIONS if 0 < sum(cat_of.get(n) == c for n in names) < MIN_SECTION]
+        if not few:
+            return names
+        pool = [n for n in pool if cat_of.get(n) not in few]
+
+
+def _prefix_that_fits(size, lang, pool):
     fits = lambda n: build(size, 1.0, lang, names=set(pool[:n]))[2] <= 0
     lo, hi = 0, len(pool)
     while lo < hi:
@@ -126,6 +144,9 @@ def most_that_fit(size, lang="de", pool=None):
             hi = mid - 1
     while lo and not fits(lo):
         lo -= 1
+    # Fitting is not monotonic: one more calibre can open a new row that later ones fill without
+    # overflowing, so the search can stop on a lower plateau. Look a little further ahead.
+    lo = max([n for n in range(lo + 1, min(lo + LOOK_AHEAD, len(pool)) + 1) if fits(n)], default=lo)
     return pool[:lo]
 
 
