@@ -38,8 +38,7 @@ def build(render=False):
             with tempfile.TemporaryDirectory() as tmp:
                 page = os.path.join(tmp, "poster.html")
                 with open(page, "w") as f:
-                    f.write(f"<!doctype html><meta charset=utf-8><style>@page{{size:{w}mm {h}mm;margin:0}}"
-                            f"html,body{{margin:0}}svg{{display:block}}</style>{svg}")
+                    f.write(poster.page_html(svg))
                 subprocess.run(["node", os.path.join(ROOT, "render.js"), page, os.path.join(out, stem + ".pdf"),
                                 str(w), str(h)], check=True)
         print(f"{lang}/{stem}: {size}, {edition}")

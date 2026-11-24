@@ -1,5 +1,5 @@
 """Tests for the calibre wall poster: python3 -m unittest discover -s tests"""
-import json, os, re, subprocess, sys, unittest
+import html, json, os, re, shutil, subprocess, sys, tempfile, unittest
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 sys.path.insert(0, ROOT)
@@ -47,7 +47,7 @@ class MergeIdenticalTests(unittest.TestCase):
 
 def texts(svg):
     """Every piece of text an SVG prints (a failed check then lists these, not the whole file)."""
-    return re.findall(r">([^<>]+)<", svg)
+    return re.findall(r">([^<>]+)<", re.sub(r"<style>.*?</style>", "", svg))  # without the embedded font
 
 
 class LabelTests(unittest.TestCase):
@@ -483,6 +483,67 @@ class MaterialTests(unittest.TestCase):
         for name in poster.MATERIALS:
             self.assertIn(f'id="{name}"', d)
         self.assertIn('stop-color="#e3c270"', d)  # brass at its own colour in the middle of the gradient
+
+
+class OutputTests(unittest.TestCase):
+    def test_every_poster_carries_the_font_in_the_weights_it_uses(self):
+        for svg in (poster.build("A3", 1.0, "de", names=LayoutTests.NAMES)[0], poster.build("A3-quer", 1.0, "en", swiss=True)[0]):
+            style = re.search(r"<style>(.*?)</style>", svg).group(1)
+            faces = set(re.findall(r"@font-face\{font-family:Inter;font-weight:(\d+);src:url\(data:font/woff2;base64,", style))
+            used = set(re.findall(r'font-weight="(\d+)"', svg)) | {"400"}  # text without a weight is regular
+            self.assertLessEqual(used, faces, "a face for every weight the poster uses")
+            self.assertTrue(re.search(r'font-family="Inter,', svg), "and the text asks for it first")
+
+    def test_no_attribute_that_browsers_ignore(self):
+        self.assertNotIn("font-variant-numeric", poster.build("A3", 1.0, "de", names=LayoutTests.NAMES)[0])
+
+    def test_the_printed_page_is_paper_under_the_poster(self):
+        self.assertIn("html,body{margin:0;background:" + poster.PAPER + "}", poster.page_html("<svg/>"))
+
+    def test_the_command_line_writes_the_page_that_render_js_prints(self):
+        with tempfile.TemporaryDirectory() as out:
+            subprocess.run([sys.executable, os.path.join(ROOT, "poster.py"), out, "--size", "A3-quer", "--swiss"], check=True, capture_output=True)
+            with open(os.path.join(out, "poster.svg")) as f, open(os.path.join(out, "poster.html")) as g:
+                svg, page = f.read(), g.read()
+        self.assertEqual(svg, poster.build("A3-quer", 1.0, "de", swiss=True)[0])
+        self.assertEqual(page, poster.page_html(svg), "no page size of its own: render.js sets it")
+
+    def test_every_character_on_the_published_posters_is_in_the_embedded_font(self):
+        """fonts/inter-latin.css is Inter's Latin subset: all of Latin-1 and little else. A name
+        with «⅜» (two Nitro Express calibres far down the ranking) would be set in another font."""
+        for lang, _, _, stem in build.VERSIONS:
+            with open(os.path.join(ROOT, lang, stem + ".svg"), encoding="utf-8") as f:
+                printed = set(html.unescape("".join(texts(f.read()))))
+            self.assertEqual(sorted(c for c in printed if not (" " <= c <= "~" or "\xa0" <= c <= "ÿ")), [], f"{lang}/{stem}")
+
+    PAGE = "2 0 obj\n<</Type /Page\n/MediaBox [0 0 844.8 1193.52]\n/Parent 3 0 R>>\nendobj\n"
+    TAIL = "xref\n0 1\n0000000000 65535 f \ntrailer\n<</Size 4\n/Root 1 0 R>>\nstartxref\n84\n%%EOF\n"
+
+    @unittest.skipUnless(shutil.which("node"), "render.js needs Node")
+    def test_the_pdf_page_gets_the_size_of_the_sheet(self):
+        """Chromium prints a slightly larger page; render.js cuts it to the sheet, measured from the top left."""
+        pdf = "%PDF-1.4\n" + self.PAGE + self.TAIL
+        self.assertEqual(pdf.index("xref"), 84)
+        script = "process.stdout.write(require('./render.js').trim(Buffer.from(process.argv[1], 'latin1'), 297, 420))"
+        out = subprocess.run(["node", "-e", script, pdf], cwd=ROOT, capture_output=True, check=True).stdout.decode("latin1")
+        self.assertTrue(out.startswith(pdf), "an incremental update: what Chromium wrote stays as it is")
+        update = out[len(pdf):]
+        self.assertIn("/MediaBox [0 2.969 841.890 1193.52]", update, "A3 is 841.890 x 1190.551 pt, hanging from the top edge")
+        at = int(re.search(r"xref\n2 1\n(\d{10}) 00000 n \n", update).group(1))
+        self.assertTrue(out[at:].startswith("2 0 obj\n<</Type /Page\n"), "the new cross-reference entry points at the new page object")
+        self.assertIn("/Root 1 0 R\n/Prev 84>>", update)
+        self.assertTrue(out[int(re.search(r"startxref\n(\d+)\n%%EOF\n$", out).group(1)):].startswith("xref\n2 1\n"))
+
+    @unittest.skipUnless(shutil.which("node"), "render.js needs Node")
+    def test_a_pdf_it_does_not_understand_is_refused(self):
+        """Two pages, a page that was trimmed before, no page at all: an error that says so, no half-trimmed file."""
+        one = "%PDF-1.4\n" + self.PAGE + self.TAIL
+        script = ("const { trim } = require('./render.js'), pdf = text => Buffer.from(text, 'latin1');"
+                  "for (const bad of [process.argv[1], process.argv[2], trim(pdf(process.argv[3]), 297, 420).toString('latin1')])"
+                  "  try { trim(pdf(bad), 297, 420); console.log('trimmed'); } catch (e) { console.log(e.message); }")
+        two = "%PDF-1.4\n" + self.PAGE + self.PAGE.replace("2 0 obj", "5 0 obj") + self.TAIL
+        out = subprocess.run(["node", "-e", script, two, "%PDF-1.4\n" + self.TAIL, one], cwd=ROOT, capture_output=True, check=True).stdout.decode()
+        self.assertEqual(out.splitlines(), ["render.js: not a one-page PDF as Chromium writes it (or one that was trimmed before)"] * 3)
 
 
 class PublishedFilesTests(unittest.TestCase):

@@ -53,5 +53,8 @@ date.
 
 - The poster (`de/`, `en/`): [CC BY-NC 4.0](LICENSE-POSTER.md),
   © 2026 Simon Giotta. Share, print and adapt it with credit, not commercially.
+- The typeface: the SVGs and PDFs carry [Inter](https://rsms.me/inter/) (Latin subset in four weights, `fonts/inter-latin.css`,
+  taken from the npm package `@fontsource/inter` 5.3.0), © The Inter Project Authors,
+  [SIL Open Font License 1.1](fonts/OFL.txt).
 - The code (`poster.py`, `build.py`, `render.js`, `tests/`): [PolyForm Noncommercial 1.0.0](LICENSE.md). Contributions need the
   [Contributor License Agreement](CLA.md).
