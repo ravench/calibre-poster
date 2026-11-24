@@ -206,19 +206,19 @@ class MaterialTests(unittest.TestCase):
 
 class PublishedFilesTests(unittest.TestCase):
     def test_published_svgs_are_up_to_date(self):
-        for lang, size, edition, stem, _ in build.VERSIONS:
+        for lang, size, edition, stem in build.VERSIONS:
             with self.subTest(stem):
                 with open(os.path.join(ROOT, lang, stem + ".svg")) as f:
                     self.assertEqual(f.read(), build.version(lang, size, edition)[0], "run python3 build.py --render")
 
-    def test_every_version_has_pdf_and_preview(self):
-        for lang, _, _, stem, suffix in build.VERSIONS:
-            for name in (stem + ".pdf", f"{stem}-{suffix}.png"):
-                self.assertTrue(os.path.isfile(os.path.join(ROOT, lang, name)), f"{lang}/{name}")
+    def test_every_version_has_a_pdf_and_no_png(self):
+        for lang, _, _, stem in build.VERSIONS:
+            self.assertTrue(os.path.isfile(os.path.join(ROOT, lang, stem + ".pdf")), f"{lang}/{stem}.pdf")
+        self.assertEqual([n for d in ("de", "en") for n in os.listdir(os.path.join(ROOT, d)) if n.endswith(".png")], [])
 
     def test_every_binary_goes_through_git_lfs(self):
         git = lambda *args: subprocess.run(["git", *args], cwd=ROOT, capture_output=True, check=True).stdout
-        files = git("ls-files", "*.png", "*.pdf").decode().split()
+        files = git("ls-files", "*.pdf").decode().split()
         self.assertTrue(files)
         for name in files:
             with self.subTest(name):
