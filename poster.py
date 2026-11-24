@@ -25,6 +25,8 @@ LANG = "de"
 FS = 0.58
 SUB_GAP = 12  # title baseline to subtitle baseline, in typography units (mm at A1 size)
 TIP_GAP = 3.0  # mm between a row's tallest cartridge and the header rule above it, on every size
+HEADER_DROP = 50  # a group this many mm shorter than its row gets its header just above itself (balls beside the .50 BMG)
+KEEP_TOGETHER = 2  # a section cut by a row break keeps at least this many cartridges on either side
 # No name is set smaller than 6 pt and no other line smaller than 5 pt: in mm, rounded up to the two
 # decimals a font size is written with (6 pt = 2.117 mm, 5 pt = 1.764 mm).
 MIN_NAME, MIN_TEXT = 2.12, 1.77
@@ -285,6 +287,18 @@ def cartridge_svg(c, o, x, base_y, k):
     return f'<g transform="translate({tx:.3f} {ty:.3f}) scale({k})">{"".join(parts)}</g>'
 
 
+def held_back(cur, rest):
+    """How many cartridges at the end of the full row `cur` go down to the next row, which `rest` fills:
+    no section starts with a single cartridge at the end of a row or ends with one at the start of the next."""
+    cat = rest[0]["cat"]
+    head = next((i for i, it in enumerate(reversed(cur)) if it["cat"] != cat), len(cur))  # of this section, at the row's end
+    tail = next((i for i, it in enumerate(rest) if it["cat"] != cat), len(rest))  # of this section, still to come
+    down = max(0, KEEP_TOGETHER - tail) if head else 0
+    if head < len(cur) and head - down < KEEP_TOGETHER:
+        down = head  # too few would stay behind: the section starts on the next row
+    return down if down < len(cur) else 0
+
+
 def section_order(spec):
     """Order inside a section: shortest first, the thinner bullet first where the printed lengths match."""
     return (round(spec["oal"], 1), spec["bullet"])  # length as printed (0.1 mm)
@@ -362,12 +376,22 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
     # Rows: flow the categories in order and break when a row is full.
     FLOW = ["Luftdruck", "Randfeuer", "Kurzwaffe", "Langwaffe", "SP_Geschoss", "SP_Patrone", "Flinte", "CH"]
     items.sort(key=lambda it: FLOW.index(it["cat"]))  # stable: keeps the order inside each category
-    rows, cur, used = [], [], 0
+    first = {}  # each section's first cartridge
     for it in items:
+        first.setdefault(it["cat"], it)
+
+    rows, cur, used, rest = [], [], 0, list(items)
+    while rest:
+        it = rest[0]
         gap = gap_cat if cur and cur[-1]["cat"] != it["cat"] else 0
         if cur and used + gap + cell_w(it) > content_w:
-            rows.append(cur); cur, used, gap = [], 0, 0
-        cur.append(it); used += gap + cell_w(it)
+            down = held_back(cur, rest)
+            if down:
+                rest[:0] = cur[-down:]
+                del cur[-down:]
+            rows.append(cur); cur, used = [], 0
+            continue
+        cur.append(rest.pop(0)); used += gap + cell_w(it)
     if cur:
         rows.append(cur)
     for row in rows:
@@ -454,11 +478,13 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
             x += cw
         # category headers + baselines
         for cat, x0, x1 in groups:
-            first = next(it for it in items if it["cat"] == cat)
-            is_start = row[[it["cat"] for it in row].index(cat)] is first
+            is_start = row[[it["cat"] for it in row].index(cat)] is first[cat]
             n = sum(len(it["names"]) for it in items if it["cat"] == cat)
             label = L["cats"][cat] + ("" if is_start else L["cont"])
-            hy = base - tallest - TIP_GAP - 1.6 * f
+            top = max(it["outline"]["height"] for it in row if it["cat"] == cat) * k
+            if tallest - top <= HEADER_DROP:
+                top = tallest  # the row's headers share one line
+            hy = base - top - TIP_GAP - 1.6 * f
             if L["cats"][cat]:
                 out.append(f'<text x="{x0 + 1:.2f}" y="{hy:.2f}" font-size="{3.3 * f:.2f}" font-weight="700" letter-spacing="{0.5 * f:.2f}" fill="{INK}">{html.escape(label.upper())}'
                            + (f'<tspan fill="{MUTED}" font-weight="400"> · {n}</tspan>' if is_start else "") + '</text>')
