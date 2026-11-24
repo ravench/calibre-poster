@@ -25,8 +25,9 @@ LANG = "de"
 FS = 0.58
 SUB_GAP = 12  # title baseline to subtitle baseline, in typography units (mm at A1 size)
 TIP_GAP = 3.0  # mm between a row's tallest cartridge and the header rule above it, on every size
-PT = 25.4 / 72  # one typographic point in mm
-MIN_NAME, MIN_TEXT = 6 * PT, 5 * PT  # no name is set smaller than 6 pt and no other line smaller than 5 pt
+# No name is set smaller than 6 pt and no other line smaller than 5 pt: in mm, rounded up to the two
+# decimals a font size is written with (6 pt = 2.117 mm, 5 pt = 1.764 mm).
+MIN_NAME, MIN_TEXT = 2.12, 1.77
 TEXT = {
     "de": dict(
         cats={"Luftdruck": "Luftdruck", "Randfeuer": "Randfeuer", "Kurzwaffe": "Kurzwaffen", "Langwaffe": "Langwaffen",
@@ -138,7 +139,7 @@ MIN_SECTION = 5
 LOOK_AHEAD = 50
 # A page counts as full when its last row's label area ends more than this many mm below the content
 # edge. The area is sized for the longest label and 12 units of type clear the footer rule below it,
-# so 2 mm cost nothing, and they give A0 its tenth row.
+# so 2 mm cost nothing, and a sheet that misses its last row by a hair keeps it.
 OVERRUN = 2.0
 
 

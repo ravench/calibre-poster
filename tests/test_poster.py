@@ -172,7 +172,8 @@ class LayoutTests(unittest.TestCase):
             self.assertAlmostEqual(x2 - x1, 100, places=6, msg=size)
             unit = re.search(r'<text x="([\d.]+)" y="[\d.]+" text-anchor="end">mm</text>', svg)
             self.assertEqual(float(unit.group(1)), w - margin, size)
-            self.assertGreater(w - margin - x2, 6 * (0.58 if w < 400 else 1), "room for «100», a gap and «mm»")
+            figures = float(re.search(r'<g font-size="([\d.]+)" fill="[^"]+" text-anchor="middle">', svg).group(1))
+            self.assertGreater(w - margin - x2, 3 * figures, "room for half of «100», a gap and «mm» at the size they are set in")
 
     def test_scale_bar_stays_clear_of_the_title_on_every_published_poster(self):
         for lang, _, _, stem in build.VERSIONS:
@@ -191,9 +192,9 @@ class TypeTests(unittest.TestCase):
         builds = [poster.build(size, 1.0, "en", names=self.NAMES)[0] for size in ("A0", "A2", "A3", "Letter")]
         for svg in builds + [poster.build("A3-quer", 1.0, "de", swiss=True)[0]]:
             sizes = [float(x) for x in re.findall(r'font-size="([\d.]+)"', svg)]
-            self.assertGreaterEqual(min(sizes), 1.76, "5 pt in mm")
+            self.assertGreaterEqual(min(sizes), 1.77, "5 pt is 1.764 mm")
             names = [float(x) for x in re.findall(r'font-size="([\d.]+)" font-weight="600"', svg)]
-            self.assertGreaterEqual(min(names), 2.12, "6 pt in mm")
+            self.assertGreaterEqual(min(names), 2.12, "6 pt is 2.117 mm")
         self.assertIn('font-size="2.55" font-weight="600"', builds[0], "the big sheets keep their A1-sized type")
         self.assertIn('font-size="2.12" font-weight="600"', builds[2], "6 pt on A3")
 
@@ -205,8 +206,22 @@ class TypeTests(unittest.TestCase):
         dims = [float(y) for y in re.findall(r'<text x="[\d.]+" y="([\d.]+)"[^>]*>Ø ', svg)]
         gaps = [below - max(y for y in dims if above < y < below) for above, below in zip(heads, heads[1:])]
         self.assertGreater(len(gaps), 2)
+        self.assertGreater(min(gaps), 8, "and that space keeps the header clear of the labels above it")
         for gap in gaps:
             self.assertAlmostEqual(gap, gaps[0], places=1)
+
+    def test_names_keep_the_room_of_their_own_size_on_every_published_poster(self):
+        """Where the type stops shrinking with the sheet, the columns stop too: two names side by
+        side stay at least eight times their size apart."""
+        for lang, _, _, stem in build.VERSIONS:
+            with open(os.path.join(ROOT, lang, stem + ".svg"), encoding="utf-8") as f:
+                svg = f.read()
+            rows = {}
+            for x, y, size in re.findall(r'<text x="([\d.]+)" y="([\d.]+)" text-anchor="middle" font-size="([\d.]+)" font-weight="600"', svg):
+                rows.setdefault(y, []).append(float(x))
+            steps = [b - a for xs in rows.values() for a, b in zip(sorted(xs), sorted(xs)[1:])]
+            self.assertGreater(len(steps), 10, stem)
+            self.assertGreaterEqual(min(steps), 8 * float(size), f"{lang}/{stem}")
 
     def test_the_licence_goes_below_the_note_where_both_do_not_fit_on_one_line(self):
         def footer(size):
