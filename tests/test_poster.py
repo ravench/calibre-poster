@@ -262,6 +262,32 @@ class SwissServiceTests(unittest.TestCase):
         self.assertEqual(rows, 1)
         self.assertLess(svg.index("Milbank-Amsler"), svg.index("Pist Pat 41"))
         self.assertLess(svg.index("Pist Pat 41"), svg.index("Zf Stgw 20"))
+        years = [row[3] for row in poster.SWISS_SERVICE]
+        self.assertTrue(all(isinstance(year, int) for year in years), "every round has its year")
+        self.assertEqual(years, sorted(years), "and stands in that order")
+        printed = texts(svg)
+        for year in ("1964", "1991"):  # the .50 BMG (Mg 64) and the 12/70 (Mzgw 91)
+            self.assertIn(year, printed)
+        self.assertLess(printed.index(".50 BMG"), printed.index("GP 90"))
+        self.assertLess(printed.index("GP 90"), printed.index("12/70"))
+
+    def test_weapons_break_between_weapons(self):
+        de = texts(poster.build("A3-quer", 1.0, "de", swiss=True)[0])
+        for row in poster.SWISS_SERVICE:
+            for weapon in row[4].split(", "):  # never «Pistole» on one line and «75» on the next
+                self.assertTrue(any(weapon in t.rstrip(",").split(", ") for t in de), weapon)
+
+    def test_no_section_header_repeats_the_subtitle(self):
+        for lang in ("de", "en"):
+            svg = poster.build("A3-quer", 1.0, lang, swiss=True)[0]
+            self.assertNotIn('font-weight="700"', svg, "no header text and no count")
+            self.assertEqual(svg.count(f'stroke="{poster.RULE}"'), 1, "only the footer rule, no header rule")
+            self.assertEqual(sum("1867 " in t for t in texts(svg)[:3]), 1, "the subtitle still says it")
+
+    def test_english_names_are_capitalised_alike(self):
+        en = texts(poster.build("A3-quer", 1.0, "en", swiss=True)[0])
+        for text in ("Rimfire", "Centrefire", "Milbank-Amsler Rifle", "Rifle 1889", "Cadet Rifle 1897", "Pistol 75, Mp 14"):
+            self.assertIn(text, en)
 
     def test_swiss_names_lead_and_numbers_use_points(self):
         de = poster.build("A3-quer", 1.0, "de", swiss=True)[0]

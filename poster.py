@@ -36,7 +36,7 @@ TEXT = {
         note2="Abmessungen gerundet nach CIP/SAAMI, Geschossform schematisch. Keine Ladedaten.",
         lic="© 2026 Simon Giotta · Lizenz CC BY-NC 4.0 · creativecommons.org/licenses/by-nc/4.0",
         same="gleiche Abmessungen",  # not «Masse»: with the Swiss ss that also reads as «mass»
-        swiss_title="Ordonnanzpatronen der Schweizer Armee", swiss_sub="{n} Patronen von 1867 bis heute · {scale}", swiss_cat="Seit 1867",
+        swiss_title="Ordonnanzpatronen der Schweizer Armee", swiss_sub="{n} Patronen von 1867 bis heute · {scale}",
         names={}),
     "en": dict(
         cats={"Luftdruck": "Airgun", "Randfeuer": "Rimfire", "Kurzwaffe": "Handgun", "Langwaffe": "Rifle",
@@ -49,10 +49,9 @@ TEXT = {
         note2="Dimensions rounded per CIP/SAAMI, bullet shapes schematic. Not load data.",
         lic="© 2026 Simon Giotta · Licence CC BY-NC 4.0 · creativecommons.org/licenses/by-nc/4.0",
         same="identical dimensions",
-        names={"Rundkugel": "Round Ball", "Browning kurz": "Browning Short", "Setzkartusche ": "", "Randfeuer": "rimfire", "Zentralfeuer": "centrefire",
-               "Milbank-Amsler-Gewehr": "Milbank-Amsler rifle", "Gewehr 1889": "Rifle 1889", "Kadettengewehr 1897": "Cadet rifle 1897", "Pistole": "Pistol",
-               "Mehrzweckgewehr": "Multi-purpose gun"},
-        swiss_title="Swiss Army Service Cartridges", swiss_sub="{n} cartridges from 1867 to today · {scale}", swiss_cat="Since 1867"),
+        names={"Rundkugel": "Round Ball", "Browning kurz": "Browning Short", "Setzkartusche ": "", "Randfeuer": "Rimfire", "Zentralfeuer": "Centrefire",
+               "Milbank-Amsler-Gewehr": "Milbank-Amsler Rifle", "Gewehr 1889": "Rifle 1889", "Kadettengewehr 1897": "Cadet Rifle 1897", "Pistole": "Pistol"},
+        swiss_title="Swiss Army Service Cartridges", swiss_sub="{n} cartridges from 1867 to today · {scale}"),
 }
 
 
@@ -90,7 +89,13 @@ MERGED = set()  # names to leave out of the poster
 # Swiss service edition: every small-arms cartridge the Swiss army adopted, oldest first.
 # The Swiss name is used only where a source gives it (Pist Pat 03/41: de.wikipedia «7,65 x 21 mm Luger»,
 # sigforum Pist Pat 41 box; GP 11, GP 90, Patrone Modell 1890 and Kadettenpatrone as in the calibre data); otherwise the usual name.
-SWISS_SERVICE = [  # (catalogue name, Swiss name, international name, year adopted, weapons); Swiss name only where sourced
+# Where no adoption date is known (.50 BMG, 12/70), the year is the model year of the first weapon we know of.
+# .50 BMG: «12,7 mm Schweres Maschinengewehr Modell 1964 (Mg 64) … Mit dem US-Schützenpanzer M 113 gelangte auch
+# erstmals das schwere Browning Maschinengewehr im Kaliber 12,7 mm (.50 Zoll) in unserer Armee zur Einführung»
+# (Verein Schweizer Armeemuseum, Bulletin 1/07, armeemuseum.ch/wp-content/uploads/2015/05/Bulletin_Vsam_d_1-07.pdf).
+# 12/70: «Flintenlaufpatrone zum Mehrzweckgewehr 91 (Mzgw 91)», Kaliber 12/70 (swisswaffen.com/?L=DE&W=MZGW91FP);
+# the year is read from the weapon's designation alone.
+SWISS_SERVICE = [  # (catalogue name, Swiss name, international name, year adopted or model year, weapons)
     ("18 mm Milbank-Amsler", "18 mm Milbank-Amsler", "", 1867, "Milbank-Amsler-Gewehr"),
     ("10.4x38 mm R Vetterli", "10.4x38 R Vetterli", "", 1867, "Peabody 1867, Vetterli 1869"),
     ("10.4 mm Swiss Ordnance 1872 Rimfire", "10.4 mm Randfeuer", "", 1872, "Revolver 1872"),
@@ -101,9 +106,9 @@ SWISS_SERVICE = [  # (catalogue name, Swiss name, international name, year adopt
     ("7.65 mm Parabellum", "Pist Pat 03", "7.65 mm Parabellum", 1900, "Pistole 1900, 1906, 06/29"),
     ("7.5x55 mm Swiss (GP 11)", "GP 11", "7.5x55", 1911, "K11, K31, Lmg 25, Mg 51, Stgw 57"),
     ("9x19 mm", "Pist Pat 41", "9 mm Parabellum", 1941, "Pistole 49, Pistole 75, Mp 14"),
-    ("12/70", "12/70", "", "", "Mehrzweckgewehr"),
-    (".50 BMG", ".50 BMG", "12.7x99 NATO", "", "Mg 64, PSG 04"),
+    (".50 BMG", ".50 BMG", "12.7x99 NATO", 1964, "Mg 64, PSG 04"),
     ("5.6 mm GP 90", "GP 90", "5.56x45 NATO", 1990, "Stgw 90, Lmg 05"),
+    ("12/70", "12/70", "", 1991, "Mzgw 91"),
     (".338 Lapua Magnum", ".338 Lapua Magnum", "8.6x70", 2004, "SSGw 04, SSGw 18"),
     ("7.62x51 mm NATO", "7.62x51 NATO", "", 2012, "Zf Stgw 12"),
     ("6.5 mm Creedmoor", "6.5 mm Creedmoor", "", 2020, "Zf Stgw 20")]
@@ -281,7 +286,7 @@ def dims(c):
 
 
 def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
-    """names: set of calibre names to draw (None = all). swiss: [(name, year, weapons)] for the Swiss service edition."""
+    """names: set of calibre names to draw (None = all). swiss: rows like SWISS_SERVICE (True = that list) for the Swiss service edition."""
     global LANG
     LANG = lang
     L = TEXT[lang]
@@ -314,7 +319,7 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
                           "oal": s["oal"], "outline": g["outline"]})
     if swiss:
         items.sort(key=lambda it: [s[0] for s in swiss].index(it["name"]))
-        L = dict(L, cats=dict(L["cats"], CH=L["swiss_cat"]))
+        L = dict(L, cats=dict(L["cats"], CH=""))  # one section: the title and subtitle already say what it is
 
     fs_name, fs_sub, fs_dim = 2.55 * f, 2.05 * f, 1.85 * f
     lh = fs_name * 1.18
@@ -416,7 +421,8 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
                 _, disp, intl, yr, wp = SW[it["name"]]
                 disp, intl, wp = (tr(t) for t in (disp, intl, wp))
                 lines = wrap(disp.split(" "), 13)
-                extra = (wrap(intl.split(" "), 19) if intl else []) + ([str(yr)] if yr else []) + wrap(wp.split(" "), 19)
+                weapons = wrap(wp.split(", "), 18, ", ")  # break between weapons, never inside «Pistole 75»
+                extra = (wrap(intl.split(" "), 19) if intl else []) + [str(yr)] + [w + "," for w in weapons[:-1]] + weapons[-1:]
             ty = base + 4.3 * f
             t = [f'<text x="{cx:.2f}" y="{ty:.2f}" text-anchor="middle" font-size="{fs_name:.2f}" font-weight="600" fill="{INK}">']
             for j, ln in enumerate(lines):
@@ -436,9 +442,10 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
             n = sum(len(it["names"]) for it in items if it["cat"] == cat)
             label = L["cats"][cat] + ("" if is_start else L["cont"])
             hy = base - tallest - 3.2 * f
-            out.append(f'<text x="{x0 + 1:.2f}" y="{hy:.2f}" font-size="{3.3 * f:.2f}" font-weight="700" letter-spacing="0.5" fill="{INK}">{html.escape(label.upper())}'
-                       + (f'<tspan fill="{MUTED}" font-weight="400"> · {n}</tspan>' if is_start else "") + '</text>')
-            out.append(f'<line x1="{x0 + 1:.2f}" x2="{x1 - 1:.2f}" y1="{hy + 1.6 * f:.2f}" y2="{hy + 1.6 * f:.2f}" stroke="{RULE}" stroke-width="0.25"/>')
+            if L["cats"][cat]:
+                out.append(f'<text x="{x0 + 1:.2f}" y="{hy:.2f}" font-size="{3.3 * f:.2f}" font-weight="700" letter-spacing="0.5" fill="{INK}">{html.escape(label.upper())}'
+                           + (f'<tspan fill="{MUTED}" font-weight="400"> · {n}</tspan>' if is_start else "") + '</text>')
+                out.append(f'<line x1="{x0 + 1:.2f}" x2="{x1 - 1:.2f}" y1="{hy + 1.6 * f:.2f}" y2="{hy + 1.6 * f:.2f}" stroke="{RULE}" stroke-width="0.25"/>')
             out.append(f'<line x1="{x0 + 1:.2f}" x2="{x1 - 1:.2f}" y1="{base:.2f}" y2="{base:.2f}" stroke="{INK}" stroke-width="0.3"/>')
         y = base + label_h + 6 * f + spare / 2
 
