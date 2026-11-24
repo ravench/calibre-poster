@@ -212,13 +212,23 @@ class MaterialTests(unittest.TestCase):
         def svg(name):
             s = spec[name]
             return poster.cartridge_svg(s, outline.outline(s), 0, 0, 1.0)
-        self.assertIn("url(#steel)", svg("7.62x39 mm"))      # steel case
+        self.assertIn("url(#lacquered)", svg("7.62x39 mm"))  # lacquered steel case, as in the apps
         self.assertIn("url(#lead)", svg(".22 LR"))           # lead bullet
         self.assertIn("url(#paper)", svg("7.5x53.5 mm Swiss (Patrone Modell 1890)"))
         self.assertIn("url(#nickel)", svg("7.5x55 mm Swiss (GP 11)"))  # a silver jacket
         self.assertNotIn("url(#copper)", svg("7.5x55 mm Swiss (GP 11)"))
-        self.assertIn("url(#paper)", svg("6 mm Airsoft-BB"))          # white plastic
+        self.assertIn("url(#plastic)", svg("6 mm Airsoft-BB"))        # white plastic
         self.assertIn("url(#lead)", svg("4.5 mm Diabolo (.177)"))
+
+    def test_material_colours_match_the_apps(self):
+        # Kaliberfinder CartridgeView: brass, copper, lead, steel, lacqueredSteel, nickel, polymer, shotShell
+        self.assertEqual(poster.MATERIALS["lacquered"], (0.42, 0.42, 0.33))
+        self.assertEqual(poster.MATERIALS["brass"], (0.89, 0.76, 0.44))
+        self.assertEqual(poster.MATERIALS["hull"], (0.75, 0.22, 0.17))
+        d = poster.defs()
+        for name in poster.MATERIALS:
+            self.assertIn(f'id="{name}"', d)
+        self.assertIn('stop-color="#e3c270"', d)  # brass at its own colour in the middle of the gradient
 
 
 class PublishedFilesTests(unittest.TestCase):
