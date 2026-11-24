@@ -216,6 +216,15 @@ class PublishedFilesTests(unittest.TestCase):
             self.assertTrue(os.path.isfile(os.path.join(ROOT, lang, stem + ".pdf")), f"{lang}/{stem}.pdf")
         self.assertEqual([n for d in ("de", "en") for n in os.listdir(os.path.join(ROOT, d)) if n.endswith(".png")], [])
 
+    def test_the_readme_links_every_version_as_pdf_and_svg(self):
+        with open(os.path.join(ROOT, "README.md")) as f:
+            links = set(re.findall(r"\]\(((?:de|en)/[^)]+)\)", f.read()))
+        for path in links:
+            self.assertTrue(os.path.isfile(os.path.join(ROOT, path)), path)
+        for lang, _, _, stem in build.VERSIONS:
+            for ext in (".pdf", ".svg"):
+                self.assertIn(f"{lang}/{stem}{ext}", links)
+
     def test_every_binary_goes_through_git_lfs(self):
         git = lambda *args: subprocess.run(["git", *args], cwd=ROOT, capture_output=True, check=True).stdout
         files = git("ls-files", "*.pdf").decode().split()
