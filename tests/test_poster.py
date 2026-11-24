@@ -148,6 +148,33 @@ class BuildTests(unittest.TestCase):
             self.assertLess(max(xs), w - 10, size)
 
 
+class LayoutTests(unittest.TestCase):
+    NAMES = {"9x19 mm", ".308 Winchester", "12/70"}
+
+    def test_tallest_cartridge_stays_clear_of_the_header_rule(self):
+        for size in ("A0", "A2", "A3"):
+            svg = poster.build(size, 1.0, "de", names=self.NAMES)[0]
+            tops = [float(y) for y in re.findall(r'<g transform="translate\([-\d.]+ ([-\d.]+)\)', svg)]
+            rules = {float(y) for y in re.findall(r'y1="([\d.]+)" y2="[\d.]+" stroke="#cfc5b3" stroke-width="0.25"', svg)}
+            self.assertEqual(len(rules), 1, "one row, its three headers on one line")
+            self.assertAlmostEqual(min(tops) - rules.pop(), poster.TIP_GAP, places=1, msg=size)
+
+    def test_header_and_title_spacing_scale_with_the_type(self):
+        spacing = lambda size: sorted(set(re.findall(r'letter-spacing="([-\d.]+)"', poster.build(size, 1.0, "de", names=self.NAMES)[0])))
+        self.assertEqual(spacing("A0"), ["-0.40", "0.50"])
+        self.assertEqual(spacing("A2"), ["-0.32", "0.40"])
+        self.assertEqual(spacing("A3"), ["-0.23", "0.29"])
+
+    def test_scale_bar_is_100_mm_and_its_unit_ends_at_the_margin(self):
+        for size, margin in (("A0", 26), ("A3", 14), ("Letter", 14)):
+            svg, (w, _), _, _ = poster.build(size, 1.0, "en", names=self.NAMES)
+            x1, x2 = map(float, re.search(r'<line x1="([\d.]+)" x2="([\d.]+)" y1="[\d.]+" y2="[\d.]+" stroke="#1d1b18" stroke-width="0.35"/>', svg).groups())
+            self.assertAlmostEqual(x2 - x1, 100, places=6, msg=size)
+            unit = re.search(r'<text x="([\d.]+)" y="[\d.]+" text-anchor="end">mm</text>', svg)
+            self.assertEqual(float(unit.group(1)), w - margin, size)
+            self.assertGreater(w - margin - x2, 6 * (0.58 if w < 400 else 1), "room for «100», a gap and «mm»")
+
+
 class OrderTests(unittest.TestCase):
     @staticmethod
     def printed(svg):
