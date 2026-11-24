@@ -18,7 +18,7 @@ from outline import outline, well_sourced  # noqa: E402
 CATALOGUE = [(cat, [s for s in items if well_sourced(s)]) for cat, items in cartridges.CATALOGUE]
 
 SIZES = {"A0": (841, 1189), "A1": (594, 841), "A2": (420, 594), "A3": (297, 420), "A4": (210, 297),
-         "B1": (700, 1000), "24x36in": (610, 914), "18x24in": (457, 610), "11x17in": (279, 432), "Letter": (216, 279),
+         "B1": (700, 1000), "24x36in": (609.6, 914.4), "18x24in": (457.2, 609.6), "11x17in": (279.4, 431.8), "Letter": (215.9, 279.4),
          "A0-hoch": (841, 1250), "A3-quer": (420, 297)}
 
 LANG = "de"
@@ -60,6 +60,13 @@ TEXT = {
         swiss_title="Swiss Army Service Cartridges", swiss_sub="{n} cartridges from 1867 to today · {scale}"),
 }
 
+
+# The US sheets are for readers who write «caliber» and «license» and name their paper in inches.
+US_SIZES = {"24x36in": "24 × 36 in", "18x24in": "18 × 24 in", "11x17in": "11 × 17 in", "Letter": "Letter"}
+US_TEXT = dict(title="Caliber Comparison",
+               note1="Print without scaling (100%) on {size}: cartridges at actual size. ",
+               noteK="Print without scaling (100%) on {size}: scale 1:{d}. ",
+               lic="© 2026 Simon Giotta · License CC BY-NC 4.0 · creativecommons.org/licenses/by-nc/4.0")
 
 # Every number on the posters has a decimal point, in German too (Swiss usage: 7.5, not 7,5). Two German
 # display aliases of the calibre data still carry a comma. The Kadettenpatrone's «Cart. 7,5 mm cadets» and
@@ -319,7 +326,7 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
     """names: set of calibre names to draw (None = all). swiss: rows like SWISS_SERVICE (True = that list) for the Swiss service edition."""
     global LANG
     LANG = lang
-    L = TEXT[lang]
+    L = dict(TEXT[lang], **US_TEXT) if lang == "en" and size in US_SIZES and not swiss else TEXT[lang]
     W, H = SIZES[size]
     small = W < 400
     # typography: big paper keeps A1-sized text so it holds more cartridges; small paper shrinks it, down to MIN_NAME and MIN_TEXT
@@ -498,7 +505,7 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
 
     fy = H - M + 2 * f
     out.append(f'<line x1="{M}" x2="{W - M}" y1="{fy - 6 * f:.2f}" y2="{fy - 6 * f:.2f}" stroke="{RULE}" stroke-width="0.3"/>')
-    note = (L["note1"] if abs(k - 1) < 1e-6 else L["noteK"]).format(size=size.split("-")[0], d=ratio) + L["note2"]
+    note = (L["note1"] if abs(k - 1) < 1e-6 else L["noteK"]).format(size=US_SIZES.get(size, size.split("-")[0]), d=ratio) + L["note2"]
     out.append(f'<text x="{M}" y="{fy:.2f}" font-size="{fs_note:.2f}" fill="{MUTED}">{html.escape(note)}</text>')
     if (len(note) + len(L["lic"]) + 4) * fs_note * 0.5 > content_w:  # no room side by side (Letter): the licence goes below
         out.append(f'<text x="{M}" y="{fy + 1.35 * fs_note:.2f}" font-size="{fs_note:.2f}" fill="{MUTED}">{html.escape(L["lic"])}</text>')

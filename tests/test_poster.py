@@ -485,6 +485,36 @@ class MaterialTests(unittest.TestCase):
         self.assertIn('stop-color="#e3c270"', d)  # brass at its own colour in the middle of the gradient
 
 
+class UsSheetTests(unittest.TestCase):
+    NAMES = LayoutTests.NAMES
+
+    def test_us_sheets_have_their_exact_size_in_inches(self):
+        for size, (w, h) in {"24x36in": (24, 36), "18x24in": (18, 24), "11x17in": (11, 17), "Letter": (8.5, 11)}.items():
+            self.assertEqual(poster.SIZES[size], (round(w * 25.4, 1), round(h * 25.4, 1)), size)
+            svg = poster.build(size, 1.0, "en", names=self.NAMES)[0]
+            self.assertEqual(re.findall(r"\d+\.\d{5,}", re.sub(r"<style>.*?</style>", "", svg)), [], f"{size}: no float noise from the odd widths")
+        self.assertIn('width="609.6mm" height="914.4mm" viewBox="0 0 609.6 914.4"', poster.build("24x36in", 1.0, "en", names=self.NAMES)[0])
+
+    def test_us_sheets_use_us_spelling_and_name_their_size_in_inches(self):
+        us = texts(poster.build("11x17in", 1.0, "en", names=self.NAMES)[0])
+        self.assertEqual(us[0], "Caliber Comparison")
+        self.assertTrue(us[-2].startswith("Print without scaling (100%) on 11 × 17 in: "), us[-2])
+        self.assertIn("License CC BY-NC 4.0", us[-1])
+        self.assertTrue(texts(poster.build("Letter", 1.0, "en", names=self.NAMES)[0])[-2].startswith("Print without scaling (100%) on Letter: "))
+        half = texts(poster.build("Letter", 0.5, "en", names=self.NAMES)[0])
+        self.assertTrue(half[-2].startswith("Print without scaling (100%) on Letter: scale 1:2. "), half[-2])
+
+    def test_other_sheets_keep_their_spelling(self):
+        a3 = texts(poster.build("A3", 1.0, "en", names=self.NAMES)[0])
+        self.assertEqual(a3[0], "Calibre Comparison")
+        self.assertTrue(a3[-2].startswith("Print without scaling (100 %) on A3: "))
+        self.assertIn("Licence CC BY-NC 4.0", a3[-1])
+        self.assertEqual(texts(poster.build("Letter", 1.0, "de", names=self.NAMES)[0])[0], "Kaliber im Vergleich")
+        swiss = texts(poster.build("Letter", 1.0, "en", swiss=True)[0])
+        self.assertIn("10.4 mm Centrefire", " ".join(swiss), "the Swiss edition has British names")
+        self.assertIn("Licence CC BY-NC 4.0", swiss[-1], "so it keeps British spelling on a US sheet too")
+
+
 class OutputTests(unittest.TestCase):
     def test_every_poster_carries_the_font_in_the_weights_it_uses(self):
         for svg in (poster.build("A3", 1.0, "de", names=LayoutTests.NAMES)[0], poster.build("A3-quer", 1.0, "en", swiss=True)[0]):
