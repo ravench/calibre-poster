@@ -21,15 +21,15 @@ VERSIONS = [(lang, size, "fit", f"{stem}-{size}")
 
 
 def version(lang, size, edition):
-    if edition == "swiss":
-        return poster.build(size, 1.0, lang, swiss=True)
-    return poster.build(size, 1.0, lang, names=set(poster.most_that_fit(size, lang)))
+    names = None if edition == "swiss" else set(poster.most_that_fit(size, lang))
+    built = poster.build(size, 1.0, lang, names=names, swiss=edition == "swiss" or None)
+    assert built[2] <= poster.OVERRUN, f"{lang} {size} {edition}: content runs {built[2]:.1f} mm into the footer"
+    return built
 
 
 def build(render=False):
     for lang, size, edition, stem in VERSIONS:
-        svg, (w, h), over, _ = version(lang, size, edition)
-        assert over <= 2.0, f"{stem}: content runs {over:.1f} mm into the footer"
+        svg, (w, h), _, _ = version(lang, size, edition)
         out = os.path.join(ROOT, lang)
         os.makedirs(out, exist_ok=True)
         with open(os.path.join(out, stem + ".svg"), "w") as f:

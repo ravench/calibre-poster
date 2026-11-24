@@ -126,18 +126,26 @@ def ranked():
     return sorted(names, key=lambda n: (-share.get(n, 0), n in OBSOLETE, n))
 
 
+# Air-gun pellets and BBs are not on the posters: only two of them are listed for sale at all, too few
+# for a section on any size.
+LEFT_OUT = ("Luftdruck",)
 # Sections left out where the page would show fewer than MIN_SECTION of them: a handful of
-# air-gun pellets or black-powder rounds makes a section that looks like an afterthought.
-SMALL_SECTIONS = ("Luftdruck", "Schwarzpulver")
+# black-powder rounds makes a section that looks like an afterthought.
+SMALL_SECTIONS = ("Schwarzpulver",)
 MIN_SECTION = 5
 LOOK_AHEAD = 50
+# A page counts as full when its last row's label area ends more than this many mm below the content
+# edge. The area is sized for the longest label and 12 units of type clear the footer rule below it,
+# so 2 mm cost nothing, and they give A0 its tenth row.
+OVERRUN = 2.0
 
 
 def most_that_fit(size, lang="de", pool=None):
-    """The longest prefix of the ranking that fits on the page at 1:1, without SMALL_SECTIONS
-    that would show fewer than MIN_SECTION calibres (the space goes to the next in the ranking)."""
-    pool = list(pool or ranked())
+    """The longest prefix of the ranking that fits on the page at 1:1, without the LEFT_OUT sections
+    and without SMALL_SECTIONS that would show fewer than MIN_SECTION calibres (the space goes to
+    the next in the ranking)."""
     cat_of = {s["name"]: cat for cat, v in CATALOGUE for s in v}
+    pool = [n for n in pool or ranked() if cat_of.get(n) not in LEFT_OUT]
     while True:
         names = _prefix_that_fits(size, lang, pool)
         few = [c for c in SMALL_SECTIONS if 0 < sum(cat_of.get(n) == c for n in names) < MIN_SECTION]
@@ -147,7 +155,7 @@ def most_that_fit(size, lang="de", pool=None):
 
 
 def _prefix_that_fits(size, lang, pool):
-    fits = lambda n: build(size, 1.0, lang, names=set(pool[:n]))[2] <= 0
+    fits = lambda n: build(size, 1.0, lang, names=set(pool[:n]))[2] <= OVERRUN
     lo, hi = 0, len(pool)
     while lo < hi:
         mid = (lo + hi + 1) // 2

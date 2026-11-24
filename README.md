@@ -9,12 +9,14 @@ measurement, the shoulder angle and the extractor groove come from a source (`ou
 in the calibre data; 736 of its 761 small-arms calibres today; cannon rounds are left out). A calibre left out comes back when its missing
 values are sourced there. They do not fit on one sheet at 1:1, so each size shows the calibres
 listed for sale most often that fit on it ([listing-share.json](listing-share.json): share of listings on the big gun
-marketplaces, counted 2026-11-04). Air-gun pellets and black-powder rounds get a section only where at least
-five of them fit; otherwise their space goes to the next calibres in that order.
+marketplaces, counted 2026-11-04). A0 holds more than are listed anywhere and fills up with calibres that have no
+listing (current ones first, by name). Air-gun pellets and BBs are left out: only two of them are listed for sale,
+too few for a section. Black-powder rounds get a section only where at least five of them fit; otherwise their
+space goes to the next calibres in that order.
 
 | | German | English |
 |---|---|---|
-| A0, about 290 calibres | [PDF](de/kaliber-poster-A0.pdf) · [SVG](de/kaliber-poster-A0.svg) | [PDF](en/calibre-poster-A0.pdf) · [SVG](en/calibre-poster-A0.svg) |
+| A0, about 310 calibres | [PDF](de/kaliber-poster-A0.pdf) · [SVG](de/kaliber-poster-A0.svg) | [PDF](en/calibre-poster-A0.pdf) · [SVG](en/calibre-poster-A0.svg) |
 | A1, about 130 | [PDF](de/kaliber-poster-A1.pdf) · [SVG](de/kaliber-poster-A1.svg) | [PDF](en/calibre-poster-A1.pdf) · [SVG](en/calibre-poster-A1.svg) |
 | A2, about 75 | [PDF](de/kaliber-poster-A2.pdf) · [SVG](de/kaliber-poster-A2.svg) | [PDF](en/calibre-poster-A2.pdf) · [SVG](en/calibre-poster-A2.svg) |
 | A3, about 50 | [PDF](de/kaliber-poster-A3.pdf) · [SVG](de/kaliber-poster-A3.svg) | [PDF](en/calibre-poster-A3.pdf) · [SVG](en/calibre-poster-A3.svg) |
