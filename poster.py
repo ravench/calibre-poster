@@ -49,18 +49,20 @@ TEXT = {
         note2="Dimensions rounded per CIP/SAAMI, bullet shapes schematic. Not load data.",
         lic="© 2026 Simon Giotta · Licence CC BY-NC 4.0 · creativecommons.org/licenses/by-nc/4.0",
         same="identical dimensions",
-        names={"Rundkugel": "Round Ball", "Browning kurz": "Browning Short", "Randfeuer": "rimfire", "Zentralfeuer": "centrefire",
+        names={"Rundkugel": "Round Ball", "Browning kurz": "Browning Short", "Setzkartusche ": "", "Randfeuer": "rimfire", "Zentralfeuer": "centrefire",
                "Milbank-Amsler-Gewehr": "Milbank-Amsler rifle", "Gewehr 1889": "Rifle 1889", "Kadettengewehr 1897": "Cadet rifle 1897", "Pistole": "Pistol",
                "Mehrzweckgewehr": "Multi-purpose gun"},
         swiss_title="Swiss Army Service Cartridges", swiss_sub="{n} cartridges from 1867 to today · {scale}", swiss_cat="Since 1867"),
 }
 
 
-# Every number on the posters has a decimal point, in German too (Swiss usage: 7.5, not 7,5). Two display
-# aliases of the calibre data still carry a comma.
+# Every number on the posters has a decimal point, in German too (Swiss usage: 7.5, not 7,5). Two German
+# display aliases of the calibre data still carry a comma. The Kadettenpatrone's «Cart. 7,5 mm cadets» and
+# «Cart. 7,5 mm cadetti» keep theirs: they quote the French and Italian box labels.
 POINTS = {"11,43 mm": "11.43 mm", "12,7x99": "12.7x99"}
-# Aliases the calibre data keeps for German readers only; the English posters leave them out.
-GERMAN_ONLY = re.compile(r"\bKK\b|Knall|Setzkartusche")
+# Aliases the calibre data keeps for German readers only; the English posters leave them out
+# (of «Setzkartusche 5.6/16» they keep the size, see TEXT["en"]["names"]).
+GERMAN_ONLY = re.compile(r"\bKK\b|Knall|Kugel")
 
 
 def tr(text):
@@ -365,10 +367,11 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
     out = []
     title_y = M + 22 * f
     T1 = title or (L["swiss_title"] if swiss else L["title"])
-    loose = any("case" not in it["outline"] for it in items)  # balls, Minié bullets, pellets
-    sub = L["swiss_sub"] if swiss else L["sub_loose"] if loose else L["sub"]
+    loose = any(it["kind"] in (BALL, MINIE, PELLET) for it in items)
+    subtitle = L["swiss_sub"] if swiss else L["sub_loose"] if loose else L["sub"]
+    ratio = f"{round(1 / k, 1):g}"  # «1:2», «1:2.5», «1:3.3»
     out.append(f'<text x="{M}" y="{title_y:.2f}" font-size="{19 * f:.2f}" font-weight="800" letter-spacing="-0.4" fill="{INK}">{html.escape(T1)}</text>')
-    out.append(f'<text x="{M}" y="{title_y + SUB_GAP * f:.2f}" font-size="{5 * f:.2f}" fill="{MUTED}">{html.escape(sub.format(n=sum(len(it["names"]) for it in items), scale=L["actual"] if abs(k - 1) < 1e-6 else L["scaled"].format(d=f"{1 / k:g}")))}</text>')
+    out.append(f'<text x="{M}" y="{title_y + SUB_GAP * f:.2f}" font-size="{5 * f:.2f}" fill="{MUTED}">{html.escape(subtitle.format(n=sum(len(it["names"]) for it in items), scale=L["actual"] if abs(k - 1) < 1e-6 else L["scaled"].format(d=ratio)))}</text>')
     # scale bar 0-100 mm (true size on print)
     bx, by = W - M - 100 * k, title_y - 3 * f
     if M + len(T1) * 19 * f * 0.56 > bx - 6 * f:  # long title: scale bar moves down beside the subtitle
@@ -411,8 +414,7 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
             lines, extra = label_lines(it["names"])
             if swiss:
                 _, disp, intl, yr, wp = SW[it["name"]]
-                if LANG == "en":
-                    disp, intl, wp = (tr(t) for t in (disp, intl, wp))
+                disp, intl, wp = (tr(t) for t in (disp, intl, wp))
                 lines = wrap(disp.split(" "), 13)
                 extra = (wrap(intl.split(" "), 19) if intl else []) + ([str(yr)] if yr else []) + wrap(wp.split(" "), 19)
             ty = base + 4.3 * f
@@ -442,7 +444,7 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
 
     fy = H - M + 2 * f
     out.append(f'<line x1="{M}" x2="{W - M}" y1="{fy - 6 * f:.2f}" y2="{fy - 6 * f:.2f}" stroke="{RULE}" stroke-width="0.3"/>')
-    note = (L["note1"] if abs(k - 1) < 1e-6 else L["noteK"]).format(size=size.split("-")[0], d=f"{1 / k:g}") + L["note2"]
+    note = (L["note1"] if abs(k - 1) < 1e-6 else L["noteK"]).format(size=size.split("-")[0], d=ratio) + L["note2"]
     out.append(f'<text x="{M}" y="{fy:.2f}" font-size="{2.4 * f:.2f}" fill="{MUTED}">{html.escape(note)}</text>')
     out.append(f'<text x="{W - M}" y="{fy:.2f}" font-size="{2.4 * f:.2f}" fill="{MUTED}" text-anchor="end">{html.escape(L["lic"])}</text>')
 
