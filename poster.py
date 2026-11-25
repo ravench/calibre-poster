@@ -30,6 +30,9 @@ KEEP_TOGETHER = 2  # a section cut by a row break keeps at least this many cartr
 # No name is set smaller than 6 pt and no other line smaller than 5 pt: in mm, rounded up to the two
 # decimals a font size is written with (6 pt = 2.117 mm, 5 pt = 1.764 mm).
 MIN_NAME, MIN_TEXT = 2.12, 1.77
+# The most Inter runs a letter, in em: in a name (semibold; «Thompson/Center» 0.588) and in an alias
+# («12.17x44 mm R Remington M67» 0.547), measured in Chromium. For a label wider than its cell at a row's end.
+NAME_EM, ALIAS_EM = 0.59, 0.55
 TEXT = {
     "de": dict(
         cats={"Luftdruck": "Luftdruck", "Randfeuer": "Randfeuer", "Kurzwaffe": "Kurzwaffen", "Langwaffe": "Langwaffen",
@@ -426,6 +429,10 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
             w = max(w, max(len(n) for n in it["lines"]) * fs_name * 0.62 + 2 * f)
         return w
 
+    def hang(it):  # how far its widest line reaches past its cell on each side (less than 0: it stays inside)
+        widest = max([len(t) * fs_name * NAME_EM for t in it["lines"]] + [len(t) * fs_sub * ALIAS_EM for t in it["sub"]])
+        return (widest - cell_w(it) - it["extra"]) / 2
+
     # Rows: flow the categories in order and break when a row is full.
     FLOW = ["Luftdruck", "Randfeuer", "Kurzwaffe", "Langwaffe", "SP_Geschoss", "SP_Patrone", "Flinte", "CH"]
     items.sort(key=lambda it: FLOW.index(it["cat"]))  # stable: keeps the order inside each category
@@ -464,10 +471,19 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
         for i, it in enumerate(row):
             it["gap_before"] = gap_cat if i and row[i - 1]["cat"] != it["cat"] else 0
         used = sum(cell_w(it) + it["extra"] + it["gap_before"] for it in row)
-        # centre-justify: spread leftover width evenly across cells
-        pad = (content_w - used) / len(row) if row is not rows[-1] or len(row) > 10 else 0
+        # centre-justify: spread leftover width evenly across cells. A label wider than its cell hangs over
+        # its neighbours' cells; at an end of the row that would be the margin, so the first and the last
+        # cell grow by the overhang on their outer side and the label stays on the sheet's type area.
+        justified = row is not rows[-1] or len(row) > 10
+        ends = [0, 0]
+        for _ in range(4):  # the padding and the overhang depend on each other: four rounds settle them to 0.01 mm
+            pad = (content_w - used - sum(ends)) / len(row)
+            if not justified:
+                pad = min(pad, 0)  # a short last row stays left-aligned; one that the overhang fills gives way too
+            ends = [max(0, hang(it) - pad / 2) for it in (row[0], row[-1])]
         for it in row:
-            it["pad"] = pad
+            it["pad"], it["left"], it["right"] = pad, 0, 0
+        row[0]["left"], row[-1]["right"] = ends
 
     out = []
     title_y = M + 22 * f
@@ -509,8 +525,8 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
         groups = []  # (cat, x0, x1, first_in_cat)
         for i, it in enumerate(row):
             x += it["gap_before"]
-            cw = cell_w(it) + it["pad"] + it["extra"]
-            cx = x + cw / 2
+            cw = cell_w(it) + it["pad"] + it["extra"] + it["left"] + it["right"]
+            cx = x + it["left"] + (cw - it["left"] - it["right"]) / 2
             if not groups or groups[-1][0] != it["cat"]:
                 groups.append([it["cat"], x, x + cw])
             else:
