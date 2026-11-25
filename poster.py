@@ -30,6 +30,9 @@ KEEP_TOGETHER = 2  # a section cut by a row break keeps at least this many cartr
 # No name is set smaller than 6 pt and no other line smaller than 5 pt: in mm, rounded up to the two
 # decimals a font size is written with (6 pt = 2.117 mm, 5 pt = 1.764 mm).
 MIN_NAME, MIN_TEXT = 2.12, 1.77
+# The most Inter runs a letter, in em: in a name (semibold; «Thompson/Center» 0.588) and in an alias
+# («12.17x44 mm R Remington M67» 0.547), measured in Chromium. For a label wider than its cell at a row's end.
+NAME_EM, ALIAS_EM = 0.59, 0.55
 TEXT = {
     "de": dict(
         cats={"Luftdruck": "Luftdruck", "Randfeuer": "Randfeuer", "Kurzwaffe": "Kurzwaffen", "Langwaffe": "Langwaffen",
@@ -426,9 +429,8 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
             w = max(w, max(len(n) for n in it["lines"]) * fs_name * 0.62 + 2 * f)
         return w
 
-    def hang(it):  # how far its widest line reaches past its cell on each side (less than 0: it stays inside),
-        # reckoned generously: Inter runs up to 0.58 em a letter in a name and 0.53 em in an alias
-        widest = max([len(t) * fs_name * 0.58 for t in it["lines"]] + [len(t) * fs_sub * 0.53 for t in it["sub"]])
+    def hang(it):  # how far its widest line reaches past its cell on each side (less than 0: it stays inside)
+        widest = max([len(t) * fs_name * NAME_EM for t in it["lines"]] + [len(t) * fs_sub * ALIAS_EM for t in it["sub"]])
         return (widest - cell_w(it) - it["extra"]) / 2
 
     # Rows: flow the categories in order and break when a row is full.
@@ -475,7 +477,9 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
         justified = row is not rows[-1] or len(row) > 10
         ends = [0, 0]
         for _ in range(4):  # the padding and the overhang depend on each other: four rounds settle them to 0.01 mm
-            pad = (content_w - used - sum(ends)) / len(row) if justified else 0
+            pad = (content_w - used - sum(ends)) / len(row)
+            if not justified:
+                pad = min(pad, 0)  # a short last row stays left-aligned; one that the overhang fills gives way too
             ends = [max(0, hang(it) - pad / 2) for it in (row[0], row[-1])]
         for it in row:
             it["pad"], it["left"], it["right"] = pad, 0, 0

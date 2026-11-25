@@ -209,35 +209,52 @@ class LayoutTests(unittest.TestCase):
             title_end = float(x) + len(title) * float(size) * 0.56  # generous: the heavy title runs about 0.52 em a letter
             self.assertTrue(float(bar_y) > float(y) or float(bar_x) > title_end, f"{lang}/{stem}: beside the title or on a line below it")
 
-    def labels_past_the_margins(self, svg):
-        """The lines under the cartridges that leave the type area, by the widths poster.py reckons with
-        (0.58 em a letter in a name, 0.53 em in the smaller lines): (text, mm past the margin)."""
-        left, right = map(float, re.search(r'<line x1="([\d.]+)" x2="([\d.]+)" y1="[\d.]+" y2="[\d.]+" stroke="%s" stroke-width="0.3"/>'
-                                           % poster.RULE, svg).groups())  # the footer rule runs from margin to margin
-        lines = [(float(x), float(size) * 0.58, line)
+    def row_ends(self, svg):
+        """(the footer rule's ends, which are the margins; the last baseline rule's end; (text, mm past the left
+        margin, mm past the right one) for every line under a cartridge, by the widths poster.py reckons with)."""
+        rule = r'<line x1="([\d.]+)" x2="([\d.]+)" y1="[\d.]+" y2="[\d.]+" stroke="%s" stroke-width="0.3"/>'
+        left, right = map(float, re.search(rule % poster.RULE, svg).groups())
+        lines = [(float(x), float(size) * poster.NAME_EM, html.unescape(line))
                  for x, size, body in re.findall(r'<text x="([\d.]+)" y="[\d.]+" text-anchor="middle" font-size="([\d.]+)" font-weight="600"[^>]*>(.*?)</text>', svg)
                  for line in re.findall(r"<tspan[^>]*>([^<]*)", body)]
-        lines += [(float(x), float(size) * 0.53, line)
+        lines += [(float(x), float(size) * poster.ALIAS_EM, html.unescape(line))
                   for x, size, line in re.findall(r'<text x="([\d.]+)" y="[\d.]+" text-anchor="middle" font-size="([\d.]+)" fill="#[0-9a-f]+">([^<]*)</text>', svg)]
         self.assertGreater(len(lines), 10)  # the shotgun sheet has eight shells in all
-        past = [(html.unescape(line), max(left - (x - len(html.unescape(line)) * em / 2), x + len(html.unescape(line)) * em / 2 - right))
-                for x, em, line in lines]
-        return [(line, round(mm, 2)) for line, mm in past if mm > 0.05]
+        baselines = max(float(x2) for _, x2 in re.findall(rule % poster.INK, svg))
+        return (left, right), baselines, [(line, left - (x - len(line) * em / 2), x + len(line) * em / 2 - right) for x, em, line in lines]
 
     def test_a_label_wider_than_its_cell_stays_inside_the_margins_at_a_row_s_end(self):
-        """A name of one long word («Mannlicher-Schönauer») is wider than its cartridge's cell and hangs over
-        the cells beside it. At an end of a row there is none: the cell grows on its outer side instead."""
-        rifles = poster.category_names("Langwaffe")
+        """A name of one long word («Mannlicher-Schönauer») or a long alias is wider than its cartridge's cell
+        and hangs over the cells beside it. At an end of a row there is none: the cell grows on its outer side
+        instead, the label ends at the margin and the baseline rule still runs to it."""
+        rifles = poster.category_names("Langwaffe")  # more than fit any sheet: every row is full
         self.assertIn("6.5x54 mm Mannlicher-Schönauer", rifles)
-        for size, lang in (("A0", "de"), ("A1", "en"), ("A3", "de"), ("Letter", "en")):  # more than fit: every row is full
+        at_left = at_right = 0
+        for size in ("A0", "A1", "A2", "A3", "24x36in", "18x24in", "11x17in", "Letter"):
             with self.subTest(size=size):
-                self.assertEqual(self.labels_past_the_margins(poster.build(size, 1.0, lang, names=rifles)[0]), [])
+                (_, right), baselines, labels = self.row_ends(poster.build(size, 1.0, "de", names=rifles)[0])
+                self.assertEqual([(line, round(max(l, r), 2)) for line, l, r in labels if max(l, r) > 0.05], [])
+                self.assertAlmostEqual(baselines, right - 1, places=1)
+                at_left += sum(abs(l) <= 0.05 for _, l, _ in labels)  # only a grown cell puts a label's end on the margin
+                at_right += sum(abs(r) <= 0.05 for _, _, r in labels)
+        self.assertTrue(at_left and at_right, f"no sheet has a wide label at a row's start ({at_left}) or end ({at_right}) any more: add one that has")
+
+    def test_a_short_last_row_does_not_grow_past_the_margin(self):
+        """Ten rifles that fill one row of Letter to 0.2 mm: the row is left-aligned, and the room its first
+        and last label need comes out of the cells, not out of the margin."""
+        names = {".280 Flanged", ".460 A-Square Short", ".375 Remington Ultra Magnum", "10.57 Lazzeroni Meteor", "7.21 Lazzeroni Firebird",
+                 ".338 Norma Magnum", ".577/500 Nitro Express", ".500 A-Square", ".375 Flanged Magnum Nitro Express", ".450 Nitro Express"}
+        self.assertLessEqual(names, poster.category_names("Langwaffe"))
+        (_, right), baselines, labels = self.row_ends(poster.build("Letter", 1.0, "en", names=names)[0])
+        self.assertLessEqual(baselines, right - 1 + 0.01)
+        self.assertEqual([(line, round(max(l, r), 2)) for line, l, r in labels if max(l, r) > 0.05], [])
 
     def test_no_label_leaves_the_type_area_on_any_published_poster(self):
         for lang, _, _, stem in build.VERSIONS:
             with open(os.path.join(ROOT, lang, stem + ".svg"), encoding="utf-8") as f:
-                self.assertEqual(self.labels_past_the_margins(f.read()), [], f"{lang}/{stem}")
-
+                (_, right), baselines, labels = self.row_ends(f.read())
+            self.assertEqual([(line, round(max(l, r), 2)) for line, l, r in labels if max(l, r) > 0.05], [], f"{lang}/{stem}")
+            self.assertLessEqual(baselines, right - 1 + 0.01, f"{lang}/{stem}")
 
 class RowBreakTests(unittest.TestCase):
     """A section cut by a row break keeps at least two cartridges on either side."""
