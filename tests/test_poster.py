@@ -284,7 +284,7 @@ class TypeTests(unittest.TestCase):
             for x, y, size in re.findall(r'<text x="([\d.]+)" y="([\d.]+)" text-anchor="middle" font-size="([\d.]+)" font-weight="600"', svg):
                 rows.setdefault(y, []).append(float(x))
             steps = [b - a for xs in rows.values() for a, b in zip(sorted(xs), sorted(xs)[1:])]
-            self.assertGreater(len(steps), 10, stem)
+            self.assertGreater(len(steps), 5, stem)  # the shotgun sheet has eight shells in all
             self.assertGreaterEqual(min(steps), 8 * float(size), f"{lang}/{stem}")
 
     def footer(self, svg):
