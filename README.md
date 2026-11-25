@@ -21,7 +21,7 @@ space goes to the next calibres in that order.
 | A2, about 85 | [PDF](de/kaliber-poster-A2.pdf) · [SVG](de/kaliber-poster-A2.svg) | [PDF](en/calibre-poster-A2.pdf) · [SVG](en/calibre-poster-A2.svg) |
 | A3, about 45 | [PDF](de/kaliber-poster-A3.pdf) · [SVG](de/kaliber-poster-A3.svg) | [PDF](en/calibre-poster-A3.pdf) · [SVG](en/calibre-poster-A3.svg) |
 | 24 × 36 in, about 155 | – | [PDF](en/calibre-poster-24x36in.pdf) · [SVG](en/calibre-poster-24x36in.svg) |
-| 18 × 24 in, about 95 | – | [PDF](en/calibre-poster-18x24in.pdf) · [SVG](en/calibre-poster-18x24in.svg) |
+| 18 × 24 in, about 100 | – | [PDF](en/calibre-poster-18x24in.pdf) · [SVG](en/calibre-poster-18x24in.svg) |
 | 11 × 17 in, about 45 | – | [PDF](en/calibre-poster-11x17in.pdf) · [SVG](en/calibre-poster-11x17in.svg) |
 | Letter, about 20 | – | [PDF](en/calibre-poster-Letter.pdf) · [SVG](en/calibre-poster-Letter.svg) |
 | Swiss service cartridges since 1867, A3 landscape | [PDF](de/schweizer-armee-A3.pdf) · [SVG](de/schweizer-armee-A3.svg) | [PDF](en/swiss-army-A3.pdf) · [SVG](en/swiss-army-A3.svg) |
@@ -32,10 +32,10 @@ Whole categories, each on the smallest sheet that holds every one of them at 1:1
 |---|---|---|---|
 | Rimfire, all 49, A3 landscape | [PDF](de/kaliber-poster-randfeuer-A3.pdf) · [SVG](de/kaliber-poster-randfeuer-A3.svg) | [PDF](en/calibre-poster-rimfire-A3.pdf) · [SVG](en/calibre-poster-rimfire-A3.svg) | [11 × 17 in](en/calibre-poster-rimfire-11x17in.pdf) · [SVG](en/calibre-poster-rimfire-11x17in.svg) |
 | Handgun, all 142, A2 | [PDF](de/kaliber-poster-kurzwaffen-A2.pdf) · [SVG](de/kaliber-poster-kurzwaffen-A2.svg) | [PDF](en/calibre-poster-handgun-A2.pdf) · [SVG](en/calibre-poster-handgun-A2.svg) | [18 × 24 in](en/calibre-poster-handgun-18x24in.pdf) · [SVG](en/calibre-poster-handgun-18x24in.svg) |
-| Black powder, all 104, A1 | [PDF](de/kaliber-poster-schwarzpulver-A1.pdf) · [SVG](de/kaliber-poster-schwarzpulver-A1.svg) | [PDF](en/calibre-poster-black-powder-A1.pdf) · [SVG](en/calibre-poster-black-powder-A1.svg) | [24 × 36 in](en/calibre-poster-black-powder-24x36in.pdf) · [SVG](en/calibre-poster-black-powder-24x36in.svg) |
+| Black powder, all 103, A1 | [PDF](de/kaliber-poster-schwarzpulver-A1.pdf) · [SVG](de/kaliber-poster-schwarzpulver-A1.svg) | [PDF](en/calibre-poster-black-powder-A1.pdf) · [SVG](en/calibre-poster-black-powder-A1.svg) | [24 × 36 in](en/calibre-poster-black-powder-24x36in.pdf) · [SVG](en/calibre-poster-black-powder-24x36in.svg) |
 | Shotgun, all 8, A4 landscape | [PDF](de/kaliber-poster-flinten-A4.pdf) · [SVG](de/kaliber-poster-flinten-A4.svg) | [PDF](en/calibre-poster-shotgun-A4.pdf) · [SVG](en/calibre-poster-shotgun-A4.svg) | [Letter](en/calibre-poster-shotgun-Letter.pdf) · [SVG](en/calibre-poster-shotgun-Letter.svg) |
 
-The 428 rifle calibres fit on no sheet at 1:1; they are on the mixed posters above.
+The 429 rifle calibres fit on no sheet at 1:1; they are on the mixed posters above.
 
 Print without scaling (100 %); the scale bar at the top lets you check. Cartridges with identical
 measurements (.308 Win / 7.62 NATO, .223 Rem / 5.56 NATO / GP 90) are drawn once
