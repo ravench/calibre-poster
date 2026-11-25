@@ -209,6 +209,35 @@ class LayoutTests(unittest.TestCase):
             title_end = float(x) + len(title) * float(size) * 0.56  # generous: the heavy title runs about 0.52 em a letter
             self.assertTrue(float(bar_y) > float(y) or float(bar_x) > title_end, f"{lang}/{stem}: beside the title or on a line below it")
 
+    def labels_past_the_margins(self, svg):
+        """The lines under the cartridges that leave the type area, by the widths poster.py reckons with
+        (0.58 em a letter in a name, 0.53 em in the smaller lines): (text, mm past the margin)."""
+        left, right = map(float, re.search(r'<line x1="([\d.]+)" x2="([\d.]+)" y1="[\d.]+" y2="[\d.]+" stroke="%s" stroke-width="0.3"/>'
+                                           % poster.RULE, svg).groups())  # the footer rule runs from margin to margin
+        lines = [(float(x), float(size) * 0.58, line)
+                 for x, size, body in re.findall(r'<text x="([\d.]+)" y="[\d.]+" text-anchor="middle" font-size="([\d.]+)" font-weight="600"[^>]*>(.*?)</text>', svg)
+                 for line in re.findall(r"<tspan[^>]*>([^<]*)", body)]
+        lines += [(float(x), float(size) * 0.53, line)
+                  for x, size, line in re.findall(r'<text x="([\d.]+)" y="[\d.]+" text-anchor="middle" font-size="([\d.]+)" fill="#[0-9a-f]+">([^<]*)</text>', svg)]
+        self.assertGreater(len(lines), 10)  # the shotgun sheet has eight shells in all
+        past = [(html.unescape(line), max(left - (x - len(html.unescape(line)) * em / 2), x + len(html.unescape(line)) * em / 2 - right))
+                for x, em, line in lines]
+        return [(line, round(mm, 2)) for line, mm in past if mm > 0.05]
+
+    def test_a_label_wider_than_its_cell_stays_inside_the_margins_at_a_row_s_end(self):
+        """A name of one long word («Mannlicher-Schönauer») is wider than its cartridge's cell and hangs over
+        the cells beside it. At an end of a row there is none: the cell grows on its outer side instead."""
+        rifles = poster.category_names("Langwaffe")
+        self.assertIn("6.5x54 mm Mannlicher-Schönauer", rifles)
+        for size, lang in (("A0", "de"), ("A1", "en"), ("A3", "de"), ("Letter", "en")):  # more than fit: every row is full
+            with self.subTest(size=size):
+                self.assertEqual(self.labels_past_the_margins(poster.build(size, 1.0, lang, names=rifles)[0]), [])
+
+    def test_no_label_leaves_the_type_area_on_any_published_poster(self):
+        for lang, _, _, stem in build.VERSIONS:
+            with open(os.path.join(ROOT, lang, stem + ".svg"), encoding="utf-8") as f:
+                self.assertEqual(self.labels_past_the_margins(f.read()), [], f"{lang}/{stem}")
+
 
 class RowBreakTests(unittest.TestCase):
     """A section cut by a row break keeps at least two cartridges on either side."""

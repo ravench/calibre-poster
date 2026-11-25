@@ -426,6 +426,11 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
             w = max(w, max(len(n) for n in it["lines"]) * fs_name * 0.62 + 2 * f)
         return w
 
+    def hang(it):  # how far its widest line reaches past its cell on each side (less than 0: it stays inside),
+        # reckoned generously: Inter runs up to 0.58 em a letter in a name and 0.53 em in an alias
+        widest = max([len(t) * fs_name * 0.58 for t in it["lines"]] + [len(t) * fs_sub * 0.53 for t in it["sub"]])
+        return (widest - cell_w(it) - it["extra"]) / 2
+
     # Rows: flow the categories in order and break when a row is full.
     FLOW = ["Luftdruck", "Randfeuer", "Kurzwaffe", "Langwaffe", "SP_Geschoss", "SP_Patrone", "Flinte", "CH"]
     items.sort(key=lambda it: FLOW.index(it["cat"]))  # stable: keeps the order inside each category
@@ -464,10 +469,17 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
         for i, it in enumerate(row):
             it["gap_before"] = gap_cat if i and row[i - 1]["cat"] != it["cat"] else 0
         used = sum(cell_w(it) + it["extra"] + it["gap_before"] for it in row)
-        # centre-justify: spread leftover width evenly across cells
-        pad = (content_w - used) / len(row) if row is not rows[-1] or len(row) > 10 else 0
+        # centre-justify: spread leftover width evenly across cells. A label wider than its cell hangs over
+        # its neighbours' cells; at an end of the row that would be the margin, so the first and the last
+        # cell grow by the overhang on their outer side and the label stays on the sheet's type area.
+        justified = row is not rows[-1] or len(row) > 10
+        ends = [0, 0]
+        for _ in range(4):  # the padding and the overhang depend on each other: four rounds settle them to 0.01 mm
+            pad = (content_w - used - sum(ends)) / len(row) if justified else 0
+            ends = [max(0, hang(it) - pad / 2) for it in (row[0], row[-1])]
         for it in row:
-            it["pad"] = pad
+            it["pad"], it["left"], it["right"] = pad, 0, 0
+        row[0]["left"], row[-1]["right"] = ends
 
     out = []
     title_y = M + 22 * f
@@ -509,8 +521,8 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
         groups = []  # (cat, x0, x1, first_in_cat)
         for i, it in enumerate(row):
             x += it["gap_before"]
-            cw = cell_w(it) + it["pad"] + it["extra"]
-            cx = x + cw / 2
+            cw = cell_w(it) + it["pad"] + it["extra"] + it["left"] + it["right"]
+            cx = x + it["left"] + (cw - it["left"] - it["right"]) / 2
             if not groups or groups[-1][0] != it["cat"]:
                 groups.append([it["cat"], x, x + cw])
             else:
