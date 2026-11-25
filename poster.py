@@ -19,7 +19,7 @@ CATALOGUE = [(cat, [s for s in items if well_sourced(s)]) for cat, items in cart
 
 SIZES = {"A0": (841, 1189), "A1": (594, 841), "A2": (420, 594), "A3": (297, 420), "A4": (210, 297),
          "B1": (700, 1000), "24x36in": (609.6, 914.4), "18x24in": (457.2, 609.6), "11x17in": (279.4, 431.8), "Letter": (215.9, 279.4),
-         "A0-hoch": (841, 1250), "A3-quer": (420, 297)}
+         "A0-hoch": (841, 1250), "A3-quer": (420, 297), "A4-quer": (297, 210), "Letter-quer": (279.4, 215.9)}
 
 LANG = "de"
 FS = 0.58
@@ -64,7 +64,8 @@ TEXT = {
 
 
 # The US sheets are for readers who write «caliber» and «license» and name their paper in inches.
-US_SIZES = {"24x36in": "24 × 36 in", "18x24in": "18 × 24 in", "11x17in": "11 × 17 in", "Letter": "Letter"}
+US_SIZES = {"24x36in": "24 × 36 in", "18x24in": "18 × 24 in", "11x17in": "11 × 17 in", "Letter": "Letter",
+            "Letter-quer": "Letter"}
 US_TEXT = dict(title="Caliber Comparison",
                note1="Print without scaling (100%) on {size}: cartridges at actual size. ",
                noteK="Print without scaling (100%) on {size}: scale 1:{d}. ",
@@ -74,13 +75,16 @@ US_TEXT = dict(title="Caliber Comparison",
 # display aliases of the calibre data still carry a comma. The Kadettenpatrone's «Cart. 7,5 mm cadets» and
 # «Cart. 7,5 mm cadetti» keep theirs: they quote the French and Italian box labels.
 POINTS = {"11,43 mm": "11.43 mm", "12,7x99": "12.7x99"}
+# The embedded Inter subset is Latin-1, so a vulgar fraction in a name (the Nitro Expresses' case
+# lengths in inches) is written out: «2⅜ inch» → «2 3/8 inch».
+FRACTIONS = {"¼": " 1/4", "½": " 1/2", "¾": " 3/4", "⅛": " 1/8", "⅜": " 3/8", "⅝": " 5/8", "⅞": " 7/8", "⅓": " 1/3", "⅔": " 2/3"}
 # Aliases the calibre data keeps for German readers only; the English posters leave them out
 # (of «Setzkartusche 5.6/16» they keep the size, see TEXT["en"]["names"]).
 GERMAN_ONLY = re.compile(r"\bKK\b|Knall|Kugel")
 
 
 def tr(text):
-    for a, b in {**POINTS, **TEXT[LANG]["names"]}.items():
+    for a, b in {**POINTS, **FRACTIONS, **TEXT[LANG]["names"]}.items():
         text = text.replace(a, b)
     return text
 
@@ -156,6 +160,39 @@ LOOK_AHEAD = 50
 # edge. The area is sized for the longest label and 12 units of type clear the footer rule below it,
 # so 2 mm cost nothing, and a sheet that misses its last row by a hair keeps it.
 OVERRUN = 2.0
+
+
+# Category posters: a whole category on the smallest sheet it fits on complete at 1:1 (Raven, 2026-11-25:
+# «If you can fit a complete category on a particular paper size, do it»). Rifles fit on no sheet.
+CATEGORY_TITLES = {
+    "Randfeuer": {"de": "Randfeuerpatronen", "en": "Rimfire Cartridges", "stem_de": "randfeuer", "stem_en": "rimfire"},
+    "Kurzwaffe": {"de": "Kurzwaffenpatronen", "en": "Handgun Cartridges", "stem_de": "kurzwaffen", "stem_en": "handgun"},
+    "Langwaffe": {"de": "Langwaffenpatronen", "en": "Rifle Cartridges", "stem_de": "langwaffen", "stem_en": "rifle"},
+    "Schwarzpulver": {"de": "Schwarzpulver", "en": "Black Powder", "stem_de": "schwarzpulver", "stem_en": "black-powder"},
+    "Flinte": {"de": "Schrotpatronen", "en": "Shotgun Shells", "stem_de": "flinten", "stem_en": "shotgun"},
+}
+# Smallest first; each size portrait, then landscape where it is set up. Of one size, the way that needs
+# fewer rows wins (eight shotgun shells: one row on A4 landscape, not six and two in portrait).
+METRIC_SHEETS = (("A4", "A4-quer"), ("A3", "A3-quer"), ("A2",), ("A1",), ("A0",))
+US_SHEETS = (("Letter", "Letter-quer"), ("11x17in",), ("18x24in",), ("24x36in",))
+
+
+def category_names(cat):
+    return {s["name"] for c, v in CATALOGUE if c == cat for s in v}
+
+
+def smallest_sheet(cat, lang, sheets):
+    """The smallest of sheets that holds every calibre of cat at 1:1, or None."""
+    names = category_names(cat)
+    for same_size in sheets:
+        fits = []
+        for size in same_size:
+            _, _, over, rows = build(size, 1.0, lang, names=names, title=CATEGORY_TITLES[cat][lang])
+            if over <= OVERRUN:
+                fits.append((rows, size))
+        if fits:
+            return min(fits)[1]
+    return None
 
 
 def most_that_fit(size, lang="de", pool=None):
@@ -360,6 +397,8 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
     if swiss:
         items.sort(key=lambda it: [s[0] for s in swiss].index(it["name"]))
         L = dict(L, cats=dict(L["cats"], CH=""))  # one section: the title and subtitle already say what it is
+    elif title and len({it["cat"] for it in items}) == 1:  # a category poster: the title names the one section
+        L = dict(L, cats=dict(L["cats"], **{items[0]["cat"]: ""}))
 
     fs_name, fs_sub, fs_dim = max(2.55 * f, MIN_NAME), max(2.05 * f, MIN_TEXT), max(1.85 * f, MIN_TEXT)
     fs_note = max(2.4 * f, MIN_TEXT)  # footer

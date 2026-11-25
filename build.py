@@ -10,7 +10,8 @@ import poster
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 # (language, size, edition, file stem). All at 1:1. "fit": the most-listed calibres that
-# fit the page (the full catalogue does not fit any single sheet); "swiss": the Swiss service cartridges.
+# fit the page (the full catalogue does not fit any single sheet); "swiss": the Swiss service cartridges;
+# "cat:<category>": every calibre of one category, on the smallest sheet that holds it (poster.smallest_sheet).
 VERSIONS = [(lang, size, "fit", f"{stem}-{size}")
             for lang, stem in (("de", "kaliber-poster"), ("en", "calibre-poster"))
             for size in ("A0", "A1", "A2", "A3")] + [
@@ -20,9 +21,28 @@ VERSIONS = [(lang, size, "fit", f"{stem}-{size}")
 ]
 
 
+def category_versions():
+    out = []
+    for cat, t in poster.CATEGORY_TITLES.items():
+        for lang, stem, sheets in (("de", "kaliber-poster", poster.METRIC_SHEETS), ("en", "calibre-poster", poster.METRIC_SHEETS),
+                                   ("en", "calibre-poster", poster.US_SHEETS)):
+            size = poster.smallest_sheet(cat, lang, sheets)
+            if size:
+                out.append((lang, size, "cat:" + cat, f"{stem}-{t['stem_' + lang]}-{size.split('-')[0]}"))
+    return out
+
+
+VERSIONS += category_versions()
+
+
 def version(lang, size, edition):
-    names = None if edition == "swiss" else set(poster.most_that_fit(size, lang))
-    built = poster.build(size, 1.0, lang, names=names, swiss=edition == "swiss" or None)
+    title = None
+    if edition.startswith("cat:"):
+        cat = edition[4:]
+        names, title = poster.category_names(cat), poster.CATEGORY_TITLES[cat][lang]
+    else:
+        names = None if edition == "swiss" else set(poster.most_that_fit(size, lang))
+    built = poster.build(size, 1.0, lang, names=names, swiss=edition == "swiss" or None, title=title)
     assert built[2] <= poster.OVERRUN, f"{lang} {size} {edition}: content runs {built[2]:.1f} mm into the footer"
     return built
 
