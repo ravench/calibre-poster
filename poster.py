@@ -474,12 +474,12 @@ def build(size="A1", k=1.0, lang="de", names=None, swiss=None, title=None):
         # centre-justify: spread leftover width evenly across cells. A label wider than its cell hangs over
         # its neighbours' cells; at an end of the row that would be the margin, so the first and the last
         # cell grow by the overhang on their outer side and the label stays on the sheet's type area.
-        justified = row is not rows[-1] or len(row) > 10
+        justified = row is not rows[-1] or len(row) > 10 or len(rows) == 1  # a poster of one row spreads it across the sheet
         ends = [0, 0]
         for _ in range(4):  # the padding and the overhang depend on each other: four rounds settle them to 0.01 mm
             pad = (content_w - used - sum(ends)) / len(row)
             if not justified:
-                pad = min(pad, 0)  # a short last row stays left-aligned; one that the overhang fills gives way too
+                pad = min(pad, 0)  # a short last row under full ones stays left-aligned; one that the overhang fills gives way too
             ends = [max(0, hang(it) - pad / 2) for it in (row[0], row[-1])]
         for it in row:
             it["pad"], it["left"], it["right"] = pad, 0, 0

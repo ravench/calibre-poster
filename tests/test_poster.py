@@ -240,14 +240,26 @@ class LayoutTests(unittest.TestCase):
         self.assertTrue(at_left and at_right, f"no sheet has a wide label at a row's start ({at_left}) or end ({at_right}) any more: add one that has")
 
     def test_a_short_last_row_does_not_grow_past_the_margin(self):
-        """Ten rifles that fill one row of Letter to 0.2 mm: the row is left-aligned, and the room its first
-        and last label need comes out of the cells, not out of the margin."""
+        """Ten rifles that fill one row of Letter to 0.2 mm: the room its first and last label need comes out
+        of the cells, not out of the margin."""
         names = {".280 Flanged", ".460 A-Square Short", ".375 Remington Ultra Magnum", "10.57 Lazzeroni Meteor", "7.21 Lazzeroni Firebird",
                  ".338 Norma Magnum", ".577/500 Nitro Express", ".500 A-Square", ".375 Flanged Magnum Nitro Express", ".450 Nitro Express"}
         self.assertLessEqual(names, poster.category_names("Langwaffe"))
         (_, right), baselines, labels = self.row_ends(poster.build("Letter", 1.0, "en", names=names)[0])
         self.assertLessEqual(baselines, right - 1 + 0.01)
         self.assertEqual([(line, round(max(l, r), 2)) for line, l, r in labels if max(l, r) > 0.05], [])
+
+    def test_a_poster_of_one_row_spreads_it_across_the_sheet(self):
+        """The shotgun sheets hold one short row: it spreads from margin to margin instead of
+        bunching up on the left, with as much room left of the first shell as right of the last."""
+        for lang, size in (("de", "A4-quer"), ("en", "Letter")):
+            with self.subTest(size=size):
+                svg, (w, _), _, rows = poster.build(size, 1.0, lang, names=poster.category_names("Flinte"), title="x")
+                self.assertEqual(rows, 1)
+                (left, right), baselines, _ = self.row_ends(svg)
+                self.assertAlmostEqual(baselines, right - 1, places=1)
+                centres = [float(x) for x in re.findall(r'<text x="([\d.]+)" y="[\d.]+" text-anchor="middle" font-size="[\d.]+" font-weight="600"', svg)]
+                self.assertAlmostEqual(centres[0] - left, right - centres[-1], delta=5)
 
     def test_no_label_leaves_the_type_area_on_any_published_poster(self):
         for lang, _, _, stem in build.VERSIONS:
